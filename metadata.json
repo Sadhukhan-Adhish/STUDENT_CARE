@@ -1,0 +1,6 @@
+{
+  "name": "NEXORA — AI Student Intelligence & Career Platform",
+  "description": "Know Where You Stand. Know Where You're Going. NEXORA connects your academic performance, technical skills, and career goals into an actionable, personalized path forward.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
