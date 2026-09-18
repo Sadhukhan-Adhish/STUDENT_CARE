@@ -13,13 +13,23 @@ import {
   Download,
 } from 'lucide-react';
 import { PageHeader, StatCard, ProgressBar } from '../../components/common/UIComponents';
-import { mockResumeAnalysis } from '../../data/mockData';
+import { useAuth } from '../../context/AuthContext';
+import { mockStudent, mockResumeAnalysis } from '../../data/mockData';
 
 export const ResumePage: React.FC = () => {
-  const [analysis, setAnalysis] = useState(mockResumeAnalysis);
+  const { user } = useAuth();
+  const student = user?.studentProfile || mockStudent;
+
+  const [analysis, setAnalysis] = useState({
+    ...mockResumeAnalysis,
+    targetRole: student.targetCareer,
+  });
   const [isUploading, setIsUploading] = useState(false);
   const [showAtsPreview, setShowAtsPreview] = useState(false);
   const [activeFileName, setActiveFileName] = useState(mockResumeAnalysis.fileName);
+
+  const studentSkills = (student.skills || []).map((s) => s.name);
+  const combinedDetectedSkills = Array.from(new Set([...analysis.detectedSkills, ...studentSkills]));
 
   const handleSimulateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
@@ -27,8 +37,7 @@ export const ResumePage: React.FC = () => {
     setActiveFileName(file.name);
     setIsUploading(true);
 
-    // Simulate AI parsing delay
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     setAnalysis((prev) => ({
       ...prev,
@@ -36,22 +45,74 @@ export const ResumePage: React.FC = () => {
       overallScore: 88,
       matchPercentage: 86,
       uploadedAt: 'Just now',
+      targetRole: student.targetCareer,
     }));
     setIsUploading(false);
+  };
+
+  const handleDownloadATSJson = () => {
+    const data = {
+      applicant: student.name,
+      rollNumber: student.rollNumber,
+      contact: {
+        email: student.email,
+        phone: student.phone || '+1-xxx-xxx-xxxx',
+        linkedin: student.linkedinUrl,
+        github: student.githubUrl,
+      },
+      education: {
+        degree: student.degree,
+        department: student.department,
+        university: student.university,
+        cgpa: student.cgpa,
+        currentSemester: student.currentSemester,
+      },
+      targetRole: student.targetCareer,
+      verifiedSkills: (student.skills || []).map((s) => ({
+        skill: s.name,
+        level: `${s.currentLevel}%`,
+        category: s.category,
+      })),
+      verifiedProjects: (student.projects || []).map((p) => ({
+        title: p.title,
+        category: p.category,
+        technologies: p.technologies,
+        status: p.status,
+      })),
+      atsRating: {
+        score: analysis.overallScore,
+        compatibility: `${analysis.matchPercentage}%`,
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${student.name.replace(/\s+/g, '_')}_ATS_Resume_Data.json`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
     <div className="space-y-6 pb-12 font-sans">
       <PageHeader
         title="Resume Intelligence &amp; ATS Optimization"
-        subtitle="Automated semantic parsing, keyword gap matching, and quantifiable impact benchmarking against tier-1 job specifications."
+        subtitle={`Automated semantic parsing, keyword gap matching, and quantifiable impact benchmarking for ${student.name}.`}
         badge="ATS Parsing Engine"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-xs font-mono text-slate-400">Target Role:</span>
             <span className="px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs font-semibold">
-              {analysis.targetRole}
+              {student.targetCareer}
             </span>
+            <button
+              onClick={handleDownloadATSJson}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-slate-200 bg-[#151D2E] hover:bg-[#1D273D] border border-[#24314A] transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-indigo-400" />
+              <span>Export ATS JSON</span>
+            </button>
           </div>
         }
       />
@@ -61,7 +122,7 @@ export const ResumePage: React.FC = () => {
         {/* Upload Zone (1 col) */}
         <div className="rounded-2xl bg-[#0D111A] border border-[#1C2538] p-6 shadow-xl flex flex-col justify-between">
           <div>
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Document Upload</span>
+            <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Document Ingestion</span>
             <h2 className="text-base font-bold text-white mt-1">Upload Resume (PDF / DOCX)</h2>
 
             <label className="mt-4 border-2 border-dashed border-[#222E46] hover:border-indigo-500/50 rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition-all bg-[#090D15]/50 hover:bg-[#0E1422] block">
@@ -97,7 +158,9 @@ export const ResumePage: React.FC = () => {
                 <span className="text-xs font-mono uppercase tracking-wider text-indigo-400 font-semibold">
                   ATS Score Analysis
                 </span>
-                <h3 className="text-xl font-bold text-white mt-0.5">Resume Calibration for {analysis.targetRole}</h3>
+                <h3 className="text-xl font-bold text-white mt-0.5">
+                  Resume Calibration for {student.targetCareer}
+                </h3>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-mono px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-semibold">
@@ -119,14 +182,16 @@ export const ResumePage: React.FC = () => {
               </div>
               <div className="p-3.5 rounded-xl bg-[#111626] border border-[#1E283C]">
                 <span className="text-[11px] text-slate-400 font-mono">Detected Technical Skills</span>
-                <div className="text-3xl font-extrabold text-cyan-400 font-mono mt-1">{analysis.detectedSkills.length}</div>
-                <span className="text-[10px] text-cyan-300 font-semibold">Extracted from Sections</span>
+                <div className="text-3xl font-extrabold text-cyan-400 font-mono mt-1">{combinedDetectedSkills.length}</div>
+                <span className="text-[10px] text-cyan-300 font-semibold">Extracted from Profile</span>
               </div>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#182132] text-xs">
-            <span className="text-slate-400">Architecture prepared for FastAPI &amp; Gemini Resume Ingestion</span>
+            <span className="text-slate-400">
+              Student: <strong className="text-slate-200">{student.name}</strong> ({student.rollNumber})
+            </span>
             <button
               onClick={() => setShowAtsPreview(!showAtsPreview)}
               className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 cursor-pointer"
@@ -143,15 +208,26 @@ export const ResumePage: React.FC = () => {
         <div className="p-5 rounded-xl bg-[#090C14] border border-[#1E2638] font-mono text-xs text-slate-300 space-y-2 animate-in fade-in duration-200">
           <div className="flex items-center justify-between text-[11px] text-slate-400 border-b border-[#182132] pb-2">
             <span>// SIMULATED ATS PARSER JSON OUTPUT</span>
-            <span>Target Role: Machine Learning Engineer</span>
+            <span>Target Role: {student.targetCareer}</span>
           </div>
           <pre className="overflow-x-auto text-[11px] text-indigo-300 leading-relaxed">
 {JSON.stringify(
   {
-    applicant: 'Alex Chen',
-    contact: { email: 'alex.chen@university.edu', phone: '+1-xxx-xxx-xxxx', status: 'VALID' },
-    education: { degree: 'B.Tech CSE & AI', gpa: 8.74, university: 'Pacific Institute of Technology' },
-    extractedSkills: analysis.detectedSkills,
+    applicant: student.name,
+    rollNumber: student.rollNumber,
+    contact: {
+      email: student.email,
+      phone: student.phone || '+1-xxx-xxx-xxxx',
+      status: 'VALID',
+    },
+    education: {
+      degree: student.degree,
+      department: student.department,
+      gpa: student.cgpa,
+      university: student.university,
+    },
+    targetCareer: student.targetCareer,
+    extractedSkills: combinedDetectedSkills,
     missingKeywordsIdentified: analysis.missingKeywords,
     atsCompatibilityRate: `${analysis.overallScore}%`,
   },
@@ -168,14 +244,14 @@ export const ResumePage: React.FC = () => {
         <div className="rounded-2xl bg-[#0D111A] border border-[#1B2232] p-6 shadow-lg">
           <div className="flex items-center gap-2 text-sm font-bold text-emerald-400 mb-2">
             <CheckCircle2 className="w-4 h-4" />
-            <span>Extracted Skills Validated by ATS ({analysis.detectedSkills.length})</span>
+            <span>Extracted Skills Validated by ATS ({combinedDetectedSkills.length})</span>
           </div>
           <p className="text-xs text-slate-400 mb-4">
-            Parsed directly from your education, experience, and project descriptions:
+            Parsed from coursework, verified skills, and project descriptions:
           </p>
 
           <div className="flex flex-wrap gap-2">
-            {analysis.detectedSkills.map((skill, idx) => (
+            {combinedDetectedSkills.map((skill, idx) => (
               <span
                 key={idx}
                 className="px-3 py-1.5 rounded-lg bg-[#111726] border border-[#1E283C] text-xs font-medium text-slate-200"
@@ -193,7 +269,7 @@ export const ResumePage: React.FC = () => {
             <span>Missing Role Keywords ({analysis.missingKeywords.length})</span>
           </div>
           <p className="text-xs text-slate-400 mb-4">
-            Critical keywords frequent in 90%+ ML Engineer job postings missing in your resume:
+            Critical keywords frequent in 90%+ {student.targetCareer} postings missing in your resume:
           </p>
 
           <div className="space-y-2.5">

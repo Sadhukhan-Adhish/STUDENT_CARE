@@ -1,51 +1,150 @@
-export interface StudentProfile {
+export interface Institution {
+  collegeName: string;
+  universityName: string;
+  universityRollNumber: string;
+  courseDegree: string;
+  branchDepartment: string;
+  currentYear: string | number;
+  currentSemester: number;
+  // Optional institution fields
+  collegeStudentId?: string;
+  universityRegistrationNumber?: string;
+  admissionYear?: string | number;
+  expectedGraduationYear?: string | number;
+}
+
+export interface Subject {
+  id?: string;
+  code: string;
+  name: string;
+  credits: number;
+  semester?: number | string; // e.g. 1-8 or "Semester 3"
+  // Optional academic fields
+  internalMarks?: number;
+  externalMarks?: number;
+  totalMarks?: number;
+  grade?: string;
+  score?: number;
+  attendance?: number;
+  category?: 'Core' | 'Elective' | 'Lab' | 'Math' | string;
+  status?: 'Strong' | 'Average' | 'Needs Improvement';
+}
+
+export type SubjectPerformance = Subject;
+
+export interface Semester {
+  semester: string; // e.g. "Semester 1" or "Sem 1"
+  semesterNumber?: number;
+  sgpa?: number;
+  cgpa?: number;
+  credits: number;
+  completed?: boolean;
+}
+
+export type AcademicSemester = Semester;
+
+export interface AcademicProfile {
+  currentSemester: number;
+  totalSemesters: number;
+  semesters: Semester[];
+  subjects: Subject[];
+  cgpa?: number;
+  sgpa?: number;
+  totalCredits?: number;
+}
+
+export interface Skill {
   id: string;
   name: string;
+  proficiency?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+  currentLevel: number; // 0 - 100
+  certification?: string;
+  experience?: string;
+  category?: 'Programming' | 'AI & ML' | 'Databases & Web' | 'DevOps & Tools' | string;
+  requiredLevel?: number; // 0 - 100
+  gap?: number; // positive = deficit
+  priority?: 'High' | 'Medium' | 'Low';
+  action?: string;
+  trend?: 'up' | 'stable' | 'down';
+}
+
+export type SkillItem = Skill;
+
+export interface Project {
+  id: string;
+  title: string;
+  name?: string;
+  tagline?: string;
+  description: string;
+  technologies: string[];
+  skillsUsed?: string[];
+  skillsCovered?: string[];
+  skillGapAddressed?: string;
+  status: 'Planned' | 'In Progress' | 'Completed' | 'Recommended';
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
+  progress?: number;
+  estimatedHours?: number;
+  githubLink?: string;
+  githubUrl?: string;
+  projectLink?: string;
+  demoUrl?: string;
+  category?: 'Machine Learning' | 'Full Stack' | 'Cloud & Systems' | 'Computer Vision' | 'AI / ML' | 'Distributed Systems' | 'DevOps & Cloud' | string;
+}
+
+export interface CareerGoal {
+  targetRole: string;
+  customRole?: string;
+  secondaryRole?: string;
+  industryTrack?: string;
+}
+
+export interface Progress {
+  learningStreakDays: number;
+  totalHoursStudied: number;
+  completedRoadmapTasks?: number;
+  totalRoadmapTasks?: number;
+  badgesUnlocked?: number;
+}
+
+export interface StudentProfile {
+  id: string;
+  rollNumber: string; // University Roll Number (Primary Student ID)
+  name: string;
   email: string;
+  password?: string;
   avatar: string;
+  college?: string;
   university: string;
   degree: string;
   department: string;
   graduationYear: number;
+  currentYear?: string | number;
   currentSemester: number;
-  cgpa: number;
-  targetCgpa: number;
+  totalSemesters?: number;
+
+  // Structured modular sub-profiles
+  institution?: Institution;
+  academic?: AcademicProfile;
+  careerGoal?: CareerGoal;
+  progress?: Progress;
+
+  // Direct access fields for existing dashboard compatibility
+  cgpa?: number;
+  targetCgpa?: number;
   targetCareer: string;
-  secondaryTargetCareer: string;
-  readinessScore: number;
-  skillScore: number;
-  learningStreakDays: number;
-  totalHoursStudied: number;
-}
-
-export interface AcademicSemester {
-  semester: string;
-  sgpa: number;
-  cgpa: number;
-  credits: number;
-}
-
-export interface SubjectPerformance {
-  code: string;
-  name: string;
-  credits: number;
-  grade: string;
-  score: number;
-  attendance: number;
-  category: 'Core' | 'Elective' | 'Lab' | 'Math';
-  status: 'Strong' | 'Average' | 'Needs Improvement';
-}
-
-export interface SkillItem {
-  id: string;
-  name: string;
-  category: 'Programming' | 'AI & ML' | 'Databases & Web' | 'DevOps & Tools';
-  currentLevel: number; // 0 - 100
-  requiredLevel: number; // 0 - 100
-  gap: number; // positive = deficit
-  priority: 'High' | 'Medium' | 'Low';
-  action: string;
-  trend: 'up' | 'stable' | 'down';
+  secondaryTargetCareer?: string;
+  readinessScore?: number;
+  skillScore?: number;
+  learningStreakDays?: number;
+  totalHoursStudied?: number;
+  phone?: string;
+  bio?: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  semesters?: AcademicSemester[];
+  subjects?: SubjectPerformance[];
+  skills?: SkillItem[];
+  projects?: ProjectItem[];
 }
 
 export interface CareerPath {
@@ -85,18 +184,21 @@ export interface RoadmapStage {
 export interface ProjectItem {
   id: string;
   title: string;
-  tagline: string;
+  name?: string;
+  tagline?: string;
   description: string;
-  category: 'Machine Learning' | 'Full Stack' | 'Cloud & Systems' | 'Computer Vision';
-  difficulty: 'Beginner' | 'Intermediate' | 'Advanced';
-  status: 'Recommended' | 'In Progress' | 'Completed';
-  progress: number;
+  category?: 'Machine Learning' | 'Full Stack' | 'Cloud & Systems' | 'Computer Vision' | 'AI / ML' | 'Distributed Systems' | 'DevOps & Cloud' | string;
+  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | string;
+  status: 'Recommended' | 'In Progress' | 'Completed' | 'Planned';
+  progress?: number;
   technologies: string[];
-  skillsCovered: string[];
-  skillGapAddressed: string;
-  estimatedHours: number;
+  skillsCovered?: string[];
+  skillGapAddressed?: string;
+  estimatedHours?: number;
   githubUrl?: string;
+  githubLink?: string;
   demoUrl?: string;
+  projectLink?: string;
 }
 
 export interface AchievementBadge {
@@ -110,6 +212,7 @@ export interface AchievementBadge {
 
 export const mockStudent: StudentProfile = {
   id: 'nex-std-7709',
+  rollNumber: '22CS084',
   name: 'Alex Chen',
   email: 'alex.chen@university.edu',
   avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
@@ -126,6 +229,10 @@ export const mockStudent: StudentProfile = {
   skillScore: 82,
   learningStreakDays: 14,
   totalHoursStudied: 184,
+  phone: '+1 (555) 234-5678',
+  bio: 'Junior studying CS & AI. Passionate about machine learning pipelines, deep learning algorithms, and distributed backend systems.',
+  githubUrl: 'https://github.com/alexchen',
+  linkedinUrl: 'https://linkedin.com/in/alexchen-dev',
 };
 
 export const mockAcademicSemesters: AcademicSemester[] = [
@@ -444,3 +551,82 @@ export const mockWeeklyActivity = [
   { day: 'Sat', hours: 6.2, tasks: 7 },
   { day: 'Sun', hours: 4.5, tasks: 5 },
 ];
+
+// Initialize mockStudent with nested dynamic collections
+mockStudent.semesters = mockAcademicSemesters;
+mockStudent.subjects = mockSubjectPerformances;
+mockStudent.skills = mockSkills;
+mockStudent.projects = mockProjects;
+
+// Academic Calculation Helpers
+export const gradeToPoints = (grade: string): number => {
+  switch (grade.toUpperCase()) {
+    case 'O':
+    case 'A+':
+      return 10.0;
+    case 'A':
+      return 9.0;
+    case 'B+':
+      return 8.0;
+    case 'B':
+      return 7.0;
+    case 'C+':
+      return 6.0;
+    case 'C':
+      return 5.0;
+    case 'D':
+      return 4.0;
+    case 'F':
+      return 0.0;
+    default:
+      return 0.0;
+  }
+};
+
+export const hasEnoughDataForSGPA = (subjects?: SubjectPerformance[]): boolean => {
+  if (!subjects || subjects.length === 0) return false;
+  return subjects.some((s) => s.grade && s.grade.trim() !== '' && s.grade !== '-' && s.grade.toUpperCase() !== 'PENDING');
+};
+
+export const calculateSGPA = (subjects?: SubjectPerformance[]): number | null => {
+  if (!subjects || subjects.length === 0) return null;
+  const graded = subjects.filter(
+    (s) => s.grade && s.grade.trim() !== '' && s.grade !== '-' && s.grade.toUpperCase() !== 'PENDING'
+  );
+  if (graded.length === 0) return null;
+  let totalPoints = 0;
+  let totalCredits = 0;
+  for (const s of graded) {
+    const credits = s.credits || 3;
+    const pts = s.grade ? gradeToPoints(s.grade) : 0;
+    totalPoints += pts * credits;
+    totalCredits += credits;
+  }
+  return totalCredits > 0 ? Number((totalPoints / totalCredits).toFixed(2)) : null;
+};
+
+export const hasEnoughDataForCGPA = (semesters?: AcademicSemester[]): boolean => {
+  if (!semesters || semesters.length === 0) return false;
+  return semesters.some((s) => typeof s.sgpa === 'number' && s.sgpa > 0);
+};
+
+export const calculateCGPA = (semesters?: AcademicSemester[]): number | null => {
+  if (!semesters || semesters.length === 0) return null;
+  const valid = semesters.filter((s) => typeof s.sgpa === 'number' && s.sgpa > 0);
+  if (valid.length === 0) return null;
+  let totalPoints = 0;
+  let totalCredits = 0;
+  for (const sem of valid) {
+    const credits = sem.credits || 20;
+    totalPoints += (sem.sgpa || 0) * credits;
+    totalCredits += credits;
+  }
+  return totalCredits > 0 ? Number((totalPoints / totalCredits).toFixed(2)) : null;
+};
+
+export const calculateReadinessScore = (skills?: SkillItem[]): number | null => {
+  if (!skills || skills.length === 0) return null;
+  const total = skills.reduce((sum, s) => sum + (s.currentLevel || 0), 0);
+  return Math.round(total / skills.length);
+};
+

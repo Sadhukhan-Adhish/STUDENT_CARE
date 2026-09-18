@@ -96,14 +96,24 @@ export const PageHeader: React.FC<{
 };
 
 export const ProgressBar: React.FC<{
-  value: number;
+  value?: number;
+  progress?: number;
   max?: number;
   color?: string;
   showLabel?: boolean;
   size?: 'sm' | 'md' | 'lg';
-}> = ({ value, max = 100, color = 'bg-indigo-500', showLabel = false, size = 'md' }) => {
-  const percentage = Math.min(100, Math.max(0, Math.round((value / max) * 100)));
+}> = ({ value, progress, max = 100, color = 'bg-indigo-500', showLabel = false, size = 'md' }) => {
+  const actualVal = value !== undefined ? value : (progress !== undefined ? progress : 0);
+  const percentage = Math.min(100, Math.max(0, Math.round((actualVal / max) * 100)));
   const height = size === 'sm' ? 'h-1.5' : size === 'lg' ? 'h-3' : 'h-2';
+
+  let colorClass = color;
+  if (color === 'indigo') colorClass = 'bg-indigo-500';
+  else if (color === 'emerald') colorClass = 'bg-emerald-500';
+  else if (color === 'rose') colorClass = 'bg-rose-500';
+  else if (color === 'amber') colorClass = 'bg-amber-500';
+  else if (color === 'purple') colorClass = 'bg-purple-500';
+  else if (color === 'cyan') colorClass = 'bg-cyan-500';
 
   return (
     <div className="w-full">
@@ -115,7 +125,7 @@ export const ProgressBar: React.FC<{
       )}
       <div className={`w-full bg-[#1A202E] rounded-full overflow-hidden ${height}`}>
         <div
-          className={`${height} rounded-full transition-all duration-500 ${color}`}
+          className={`${height} rounded-full transition-all duration-500 ${colorClass}`}
           style={{ width: `${percentage}%` }}
         />
       </div>
