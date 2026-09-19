@@ -29,6 +29,8 @@ const pageTitles: Record<string, { title: string; category: string }> = {
   '/dashboard/progress': { title: 'Progress & Milestones', category: 'Telemetry & Badges' },
   '/dashboard/ai': { title: 'AI Student Assistant', category: 'Adaptive Guidance' },
   '/dashboard/settings': { title: 'Platform Settings', category: 'Preferences & Account' },
+  '/dashboard/profile': { title: 'Student Profile & Identification', category: 'Student Identification' },
+  '/profile': { title: 'Student Profile & Identification', category: 'Student Identification' },
 };
 
 export const Topbar: React.FC<TopbarProps> = ({ onOpenSidebar }) => {
@@ -45,11 +47,13 @@ export const Topbar: React.FC<TopbarProps> = ({ onOpenSidebar }) => {
 
   const student = user?.studentProfile || mockStudent;
 
-  const notifications = [
-    { id: 1, text: 'New Skill Gap identified in PyTorch & MLOps', time: '10m ago', unread: true, type: 'alert' },
-    { id: 2, text: 'Mid-term Algorithms grade uploaded: A+ (94/100)', time: '2h ago', unread: true, type: 'success' },
-    { id: 3, text: 'Recommended Project: Computer Vision Defect Detector', time: '1d ago', unread: false, type: 'info' },
+  const guestNotifications = [
+    { id: 1, text: '[Sample Alert] New Skill Gap identified in PyTorch & MLOps', time: '10m ago', unread: true, type: 'alert' },
+    { id: 2, text: '[Sample Result] Mid-term Algorithms grade uploaded: A+ (94/100)', time: '2h ago', unread: true, type: 'success' },
+    { id: 3, text: '[Sample Project] Recommended Project: Computer Vision Defect Detector', time: '1d ago', unread: false, type: 'info' },
   ];
+
+  const unreadCount = user?.isGuest ? 2 : 0;
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-[#08090D]/90 backdrop-blur-md border-b border-[#18202F] px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
@@ -104,80 +108,125 @@ export const Topbar: React.FC<TopbarProps> = ({ onOpenSidebar }) => {
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#141A28] border border-transparent hover:border-[#1E2638] transition-all relative"
+            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#141A28] border border-transparent hover:border-[#1E2638] transition-all relative cursor-pointer"
             aria-label="Notifications"
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-[#08090D]" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-500 ring-2 ring-[#08090D]" />
+            )}
           </button>
 
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-xl bg-[#0E131E] border border-[#1E2638] shadow-2xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-              <div className="flex items-center justify-between pb-3 border-b border-[#1A2234]">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">Telemetry Notifications</span>
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300">2 New</span>
-                </div>
-                <button
-                  onClick={() => setShowNotifications(false)}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+            <>
+              {/* Mobile backdrop to dismiss when tapping outside */}
+              <div
+                className="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 sm:hidden"
+                onClick={() => setShowNotifications(false)}
+              />
 
-              <div className="mt-3 space-y-2.5">
-                {notifications.map((n) => (
-                  <div
-                    key={n.id}
-                    className={`p-2.5 rounded-lg text-xs border transition-colors flex items-start gap-2.5 ${
-                      n.unread
-                        ? 'bg-indigo-950/20 border-indigo-500/20 text-slate-200'
-                        : 'bg-[#121826] border-[#1C2538] text-slate-400'
-                    }`}
-                  >
-                    {n.type === 'alert' && <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />}
-                    {n.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />}
-                    {n.type === 'info' && <Bot className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-slate-200">{n.text}</p>
-                      <span className="text-[10px] text-slate-400 font-mono">{n.time}</span>
-                    </div>
+              {/* Notification Popover/Drawer */}
+              <div className="fixed inset-x-3 top-16 z-50 max-w-md mx-auto sm:absolute sm:inset-auto sm:right-0 sm:top-full sm:mt-2 sm:w-96 rounded-2xl bg-[#0E131E] border border-[#1E2638] shadow-2xl p-4 flex flex-col max-h-[80vh] sm:max-h-[30rem] animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="flex items-center justify-between pb-3 border-b border-[#1A2234] flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                      Telemetry Notifications
+                    </span>
+                    {user?.isGuest ? (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                        Sample Demo
+                      </span>
+                    ) : unreadCount > 0 ? (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300">
+                        {unreadCount} New
+                      </span>
+                    ) : null}
                   </div>
-                ))}
-              </div>
+                  <button
+                    onClick={() => setShowNotifications(false)}
+                    className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-[#1A2234] transition-colors cursor-pointer"
+                    aria-label="Close notifications"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
 
-              <div className="mt-3 pt-2 border-t border-[#1A2234] text-center">
-                <button
-                  onClick={() => {
-                    setShowNotifications(false);
-                    navigate('/dashboard/progress');
-                  }}
-                  className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300"
-                >
-                  View All Telemetry & Logged Activity →
-                </button>
+                {/* Body / List */}
+                <div className="my-3 space-y-2.5 flex-1 overflow-y-auto pr-1">
+                  {user?.isGuest ? (
+                    guestNotifications.map((n) => (
+                      <div
+                        key={n.id}
+                        className={`p-2.5 rounded-xl text-xs border transition-colors flex items-start gap-2.5 ${
+                          n.unread
+                            ? 'bg-indigo-950/25 border-indigo-500/25 text-slate-200'
+                            : 'bg-[#121826] border-[#1C2538] text-slate-400'
+                        }`}
+                      >
+                        {n.type === 'alert' && <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />}
+                        {n.type === 'success' && <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />}
+                        {n.type === 'info' && <Bot className="w-4 h-4 text-cyan-400 flex-shrink-0 mt-0.5" />}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-slate-200 break-words">{n.text}</p>
+                          <span className="text-[10px] text-slate-500 font-mono mt-0.5 block">{n.time}</span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="py-6 px-3 text-center flex flex-col items-center">
+                      <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 mb-3">
+                        <Sparkles className="w-5 h-5" />
+                      </div>
+                      <p className="text-xs font-semibold text-white">No new notifications yet.</p>
+                      <p className="text-[11px] text-slate-400 mt-1 max-w-[240px] leading-relaxed">
+                        Complete your profile and add academic records to start receiving personalized insights.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setShowNotifications(false);
+                          navigate('/profile');
+                        }}
+                        className="mt-3.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold cursor-pointer transition-colors shadow-sm"
+                      >
+                        Complete Your Profile →
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-[#1A2234] text-center flex-shrink-0">
+                  <button
+                    onClick={() => {
+                      setShowNotifications(false);
+                      navigate('/dashboard/progress');
+                    }}
+                    className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+                  >
+                    View All Telemetry & Logged Activity →
+                  </button>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
 
-        {/* Student Profile Quick Chip */}
+        {/* Student Profile Quick Chip - Navigates to /profile */}
         <Link
-          to="/dashboard/settings"
-          className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-[#111623] hover:bg-[#161D2E] border border-[#1E2638] transition-all group"
+          to="/profile"
+          className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-[#111623] hover:bg-[#161D2E] border border-[#1E2638] hover:border-indigo-500/30 transition-all group min-h-[36px]"
+          title="View Student Profile"
         >
           <img
             src={student.avatar}
-            alt={student.name}
-            className="w-6 h-6 rounded-full object-cover border border-indigo-500/50"
+            alt={user?.isGuest ? 'Guest Student' : student.name}
+            className="w-6 h-6 rounded-full object-cover border border-indigo-500/50 flex-shrink-0"
           />
           <div className="hidden sm:block text-left">
             <span className="block text-xs font-semibold text-slate-200 group-hover:text-white leading-tight">
-              {student.name}
+              {user?.isGuest ? 'Guest Student' : student.name}
             </span>
-            <span className="block text-[10px] text-indigo-400 font-mono leading-none">
-              {student.targetCareer}
+            <span className="block text-[10px] font-mono leading-none text-indigo-400">
+              {user?.isGuest ? 'GUEST MODE' : (student.targetCareer || 'Student')}
             </span>
           </div>
         </Link>

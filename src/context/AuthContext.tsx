@@ -30,24 +30,25 @@ export interface User {
   displayName: string;
   photoURL: string;
   studentProfile: StudentProfile;
+  isGuest?: boolean;
 }
 
 export interface StudentRegistrationParams {
   // Step 1: Personal
   name: string;
-  email?: string;
+  email: string;
   password?: string;
   phone?: string;
   avatar?: string;
 
   // Step 2: Institution
   collegeName?: string;
-  universityName: string;
-  universityRollNumber: string;
-  courseDegree: string;
-  branchDepartment: string;
+  universityName?: string;
+  universityRollNumber?: string;
+  courseDegree?: string;
+  branchDepartment?: string;
   currentYear?: string | number;
-  currentSemester: number;
+  currentSemester?: number;
   collegeStudentId?: string;
   universityRegistrationNumber?: string;
   admissionYear?: string | number;
@@ -57,26 +58,37 @@ export interface StudentRegistrationParams {
   totalSemesters?: number;
   subjects?: SubjectPerformance[];
   semesters?: AcademicSemester[];
+  syllabus?: import('../data/mockData').CollegeSyllabusItem[];
 
   // Step 4: Skills
   skills?: SkillItem[];
+  ownSkillUp?: import('../data/mockData').SkillGoal[];
 
   // Step 5: Projects
   projects?: ProjectItem[];
 
   // Step 6: Career Goal
-  targetCareer: string;
+  targetCareer?: string;
   customCareerGoal?: string;
+
+  // Onboarding status
+  onboardingCompleted?: boolean;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (rollNumber: string, password?: string) => Promise<boolean>;
+  isGuest: boolean;
+  login: (rollNumberOrEmail: string, password?: string) => Promise<boolean>;
   signup: (params: StudentRegistrationParams) => Promise<boolean>;
   logout: () => Promise<void>;
+  enterGuestMode: () => Promise<void>;
+  exitGuestMode: () => Promise<void>;
   demoLogin: () => Promise<void>;
   updateProfile: (profile: Partial<StudentProfile>) => void;
+  // Onboarding helpers
+  saveOnboardingStep: (data: Partial<StudentProfile>, step?: number) => void;
+  completeOnboarding: (finalData?: Partial<StudentProfile>) => void;
   // Dynamic Academic management
   addSubject: (subject: SubjectPerformance) => void;
   updateSubject: (code: string, updated: Partial<SubjectPerformance>) => void;
@@ -99,15 +111,37 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_STORAGE_KEY = 'nexora_auth_user';
 const STUDENTS_DB_KEY = 'nexora_students_db';
 
-const getInitialDemoUser = (): User => {
+const getSampleGuestUser = (): User => {
   return {
-    uid: mockStudent.id,
-    rollNumber: mockStudent.rollNumber,
-    email: mockStudent.email,
-    displayName: mockStudent.name,
-    photoURL: mockStudent.avatar,
+    uid: 'guest-' + Date.now(),
+    rollNumber: 'GUEST-DEMO',
+    email: 'guest@nexora.demo',
+    displayName: 'Guest Student',
+    photoURL: 'https://api.dicebear.com/7.x/bottts/svg?seed=GuestStudent',
+    isGuest: true,
     studentProfile: {
-      ...mockStudent,
+      id: 'guest-sample-student',
+      rollNumber: 'GUEST-DEMO',
+      name: 'Guest Student',
+      email: 'guest@nexora.demo',
+      avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GuestStudent',
+      college: 'Pacific Institute of Technology',
+      university: 'Pacific Institute of Technology',
+      degree: 'Bachelor of Technology (B.Tech)',
+      department: 'Computer Science & AI',
+      graduationYear: 2027,
+      currentSemester: 6,
+      cgpa: 8.74,
+      targetCgpa: 9.0,
+      targetCareer: 'Machine Learning Engineer',
+      secondaryTargetCareer: 'Full Stack Systems Engineer',
+      readinessScore: 76,
+      skillScore: 82,
+      learningStreakDays: 14,
+      totalHoursStudied: 184,
+      bio: 'Guest demonstration student profile for exploring NEXORA platform capabilities.',
+      onboardingCompleted: true,
+      onboardingStep: 7,
       semesters: [...mockAcademicSemesters],
       subjects: [...mockSubjectPerformances],
       skills: [...mockSkills],
@@ -120,23 +154,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Helper to persist user and update student db
+  const isGuest = Boolean(user?.isGuest);
+
+  // Helper to persist user and update student db (only if not guest)
   const persistUser = (updatedUser: User | null) => {
     setUser(updatedUser);
     if (updatedUser) {
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(updatedUser));
-      try {
-        const storedDb = localStorage.getItem(STUDENTS_DB_KEY);
-        const db: Record<string, StudentProfile> = storedDb ? JSON.parse(storedDb) : {};
-        if (updatedUser.studentProfile.rollNumber) {
-          db[updatedUser.studentProfile.rollNumber.toUpperCase().trim()] = updatedUser.studentProfile;
+      // Only persist registered students into the student database, NEVER guests
+      if (!updatedUser.isGuest) {
+        try {
+          const storedDb = localStorage.getItem(STUDENTS_DB_KEY);
+          const db: Record<string, StudentProfile> = storedDb ? JSON.parse(storedDb) : {};
+          if (updatedUser.studentProfile.rollNumber) {
+            db[updatedUser.studentProfile.rollNumber.toUpperCase().trim()] = updatedUser.studentProfile;
+          }
+          if (updatedUser.studentProfile.email) {
+            db[updatedUser.studentProfile.email.toLowerCase().trim()] = updatedUser.studentProfile;
+          }
+          localStorage.setItem(STUDENTS_DB_KEY, JSON.stringify(db));
+        } catch (e) {
+          console.error('Error syncing student database', e);
         }
-        if (updatedUser.studentProfile.email) {
-          db[updatedUser.studentProfile.email.toLowerCase().trim()] = updatedUser.studentProfile;
-        }
-        localStorage.setItem(STUDENTS_DB_KEY, JSON.stringify(db));
-      } catch (e) {
-        console.error('Error syncing student database', e);
       }
     } else {
       localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -145,12 +184,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     try {
+      // Clean up any stale legacy Alex Chen demo keys from student db or auth
+      const storedDb = localStorage.getItem(STUDENTS_DB_KEY);
+      if (storedDb) {
+        const db: Record<string, any> = JSON.parse(storedDb);
+        if (db['22CS084'] || db['alex.chen@university.edu']) {
+          delete db['22CS084'];
+          delete db['alex.chen@university.edu'];
+          localStorage.setItem(STUDENTS_DB_KEY, JSON.stringify(db));
+        }
+      }
+
       const stored = localStorage.getItem(AUTH_STORAGE_KEY);
       if (stored) {
         const parsed: User = JSON.parse(stored);
-        setUser(parsed);
+        // Purge any old session that was Alex Chen
+        if (
+          parsed.rollNumber === '22CS084' ||
+          parsed.displayName === 'Alex Chen' ||
+          parsed.studentProfile?.rollNumber === '22CS084'
+        ) {
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+          setUser(null);
+        } else {
+          setUser(parsed);
+        }
       } else {
-        // No active session: keep user null so unauthenticated users see login/signup
+        // No active session: keep user null so unauthenticated visitors must sign in or choose guest mode
         setUser(null);
       }
     } catch (e) {
@@ -160,6 +220,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
     }
   }, []);
+
+  const enterGuestMode = async (): Promise<void> => {
+    setLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    const guestUser = getSampleGuestUser();
+    persistUser(guestUser);
+    setLoading(false);
+  };
+
+  const exitGuestMode = async (): Promise<void> => {
+    setLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    persistUser(null);
+    setLoading(false);
+  };
 
   const login = async (rollNumber: string, password?: string): Promise<boolean> => {
     setLoading(true);
@@ -174,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const upperId = identifier.toUpperCase();
     const lowerId = identifier.toLowerCase();
 
-    // Check local student database
+    // Check local student database for registered student
     let profileToLoad: StudentProfile | null = null;
     try {
       const storedDb = localStorage.getItem(STUDENTS_DB_KEY);
@@ -187,22 +262,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.error('Error checking student db', e);
     }
 
-    // Support internal demo testing credentials if explicitly requested
-    if (!profileToLoad) {
-      if (upperId === '22CS084' || upperId === mockStudent.rollNumber.toUpperCase()) {
-        profileToLoad = {
-          ...mockStudent,
-          semesters: [...mockAcademicSemesters],
-          subjects: [...mockSubjectPerformances],
-          skills: [...mockSkills],
-          projects: [...mockProjects],
-        };
-      }
-    }
-
     if (!profileToLoad) {
       setLoading(false);
-      throw new Error(`No student account found for Roll Number "${identifier}". Please create an account.`);
+      throw new Error(`No student account found for Roll Number "${identifier}". Please create an account or explore in Guest Mode.`);
     }
 
     // Validate password if student set a password during onboarding
@@ -217,6 +279,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: profileToLoad.email,
       displayName: profileToLoad.name,
       photoURL: profileToLoad.avatar,
+      isGuest: false,
       studentProfile: profileToLoad,
     };
 
@@ -227,31 +290,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signup = async (params: StudentRegistrationParams): Promise<boolean> => {
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    const rollNo = params.universityRollNumber.trim().toUpperCase();
-    const email = params.email?.trim() || `${rollNo.toLowerCase()}@${params.universityName.toLowerCase().replace(/[^a-z]/g, '') || 'university'}.edu`;
-    const degree = params.courseDegree.trim();
-    const department = params.branchDepartment.trim();
+    const rollNo = params.universityRollNumber?.trim().toUpperCase() || '';
+    const email = params.email.trim().toLowerCase();
+    const degree = params.courseDegree?.trim() || '';
+    const department = params.branchDepartment?.trim() || '';
     const currentSem = Number(params.currentSemester) || 1;
     const finalCareer =
       params.targetCareer === 'Other' && params.customCareerGoal
         ? params.customCareerGoal.trim()
-        : params.targetCareer.trim();
+        : (params.targetCareer?.trim() || '');
 
     const subjects = params.subjects || [];
     const semesters = params.semesters || [];
     const skills = params.skills || [];
+    const ownSkillUp = params.ownSkillUp || [];
     const projects = params.projects || [];
+    const syllabus = params.syllabus || [];
 
-    // Calculated metrics
-    const calculatedSgpa = calculateSGPA(subjects);
-    const calculatedCgpa = calculateCGPA(semesters);
-    const calculatedReadiness = calculateReadinessScore(skills);
+    // Calculated metrics ONLY if real data provided
+    const calculatedSgpa = subjects.length > 0 ? calculateSGPA(subjects) : null;
+    const calculatedCgpa = semesters.length > 0 ? calculateCGPA(semesters) : null;
+    const calculatedReadiness = skills.length > 0 ? calculateReadinessScore(skills) : null;
 
     const institution: Institution = {
-      collegeName: params.collegeName?.trim() || params.universityName.trim(),
-      universityName: params.universityName.trim(),
+      collegeName: params.collegeName?.trim() || '',
+      universityName: params.universityName?.trim() || '',
       universityRollNumber: rollNo,
       courseDegree: degree,
       branchDepartment: department,
@@ -292,9 +357,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password: params.password,
       phone: params.phone?.trim(),
-      avatar: params.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(rollNo)}`,
-      college: params.collegeName?.trim() || params.universityName.trim(),
-      university: params.universityName.trim(),
+      avatar: params.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(rollNo || email || 'student')}`,
+      college: params.collegeName?.trim() || '',
+      university: params.universityName?.trim() || '',
       department,
       degree,
       graduationYear: params.expectedGraduationYear
@@ -304,6 +369,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       currentSemester: currentSem,
       totalSemesters: params.totalSemesters || 8,
 
+      onboardingCompleted: params.onboardingCompleted ?? false,
+      onboardingStep: 0,
+
       institution,
       academic,
       careerGoal,
@@ -312,16 +380,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       cgpa: calculatedCgpa || undefined,
       targetCgpa: 9.0,
       targetCareer: finalCareer,
-      secondaryTargetCareer: 'Software Engineer',
+      secondaryTargetCareer: '',
       readinessScore: calculatedReadiness || undefined,
       skillScore: calculatedReadiness || undefined,
       learningStreakDays: 1,
       totalHoursStudied: 0,
-      bio: `Student at ${params.collegeName || params.universityName}, enrolled in ${degree} (${department}). Target Career: ${finalCareer}.`,
+      bio: `Student enrolled in ${degree || 'undergraduate studies'} ${department ? `(${department})` : ''}.`,
       semesters,
       subjects,
       skills,
+      ownSkillUp,
       projects,
+      syllabus,
     };
 
     const newUser: User = {
@@ -330,12 +400,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: newProfile.email,
       displayName: newProfile.name,
       photoURL: newProfile.avatar,
+      isGuest: false,
       studentProfile: newProfile,
     };
 
     persistUser(newUser);
     setLoading(false);
     return true;
+  };
+
+  const saveOnboardingStep = (data: Partial<StudentProfile>, step?: number) => {
+    if (!user) return;
+    const current = user.studentProfile;
+    const updatedProfile: StudentProfile = {
+      ...current,
+      ...data,
+      onboardingStep: typeof step === 'number' ? step : current.onboardingStep,
+    };
+
+    const updatedUser: User = {
+      ...user,
+      displayName: updatedProfile.name || user.displayName,
+      rollNumber: updatedProfile.rollNumber || user.rollNumber,
+      photoURL: updatedProfile.avatar || user.photoURL,
+      studentProfile: updatedProfile,
+    };
+
+    persistUser(updatedUser);
+  };
+
+  const completeOnboarding = (finalData?: Partial<StudentProfile>) => {
+    if (!user) return;
+    const current = user.studentProfile;
+    const merged: StudentProfile = {
+      ...current,
+      ...(finalData || {}),
+      onboardingCompleted: true,
+      onboardingStep: 7,
+    };
+
+    // Calculate real metrics ONLY if real data exists
+    const subjects = merged.subjects || [];
+    const semesters = merged.semesters || [];
+    const skills = merged.skills || [];
+
+    const realSgpa = subjects.length > 0 ? calculateSGPA(subjects) : null;
+    const realCgpa = semesters.length > 0 ? calculateCGPA(semesters) : null;
+    const realReadiness = skills.length > 0 ? calculateReadinessScore(skills) : null;
+
+    const finalizedProfile: StudentProfile = {
+      ...merged,
+      cgpa: realCgpa !== null ? realCgpa : undefined,
+      sgpa: realSgpa !== null ? realSgpa : undefined,
+      readinessScore: realReadiness !== null ? realReadiness : undefined,
+      skillScore: realReadiness !== null ? realReadiness : undefined,
+    };
+
+    const updatedUser: User = {
+      ...user,
+      displayName: finalizedProfile.name,
+      rollNumber: finalizedProfile.rollNumber,
+      photoURL: finalizedProfile.avatar || user.photoURL,
+      studentProfile: finalizedProfile,
+    };
+
+    persistUser(updatedUser);
   };
 
   const logout = async (): Promise<void> => {
@@ -346,13 +475,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const demoLogin = async (): Promise<void> => {
-    const demoUser = getInitialDemoUser();
-    persistUser(demoUser);
+    // Legacy support redirect to Guest Mode
+    await enterGuestMode();
   };
 
   const updateProfile = (updatedFields: Partial<StudentProfile>) => {
     if (!user) return;
-    const current = user.studentProfile || mockStudent;
+    const current = user.studentProfile;
     const updatedProfile: StudentProfile = {
       ...current,
       ...updatedFields,
@@ -539,8 +668,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const resetToDemoStudent = () => {
-    const demoUser = getInitialDemoUser();
-    persistUser(demoUser);
+    const guestUser = getSampleGuestUser();
+    persistUser(guestUser);
   };
 
   return (
@@ -548,11 +677,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         loading,
+        isGuest,
         login,
         signup,
         logout,
+        enterGuestMode,
+        exitGuestMode,
         demoLogin,
         updateProfile,
+        saveOnboardingStep,
+        completeOnboarding,
         addSubject,
         updateSubject,
         deleteSubject,

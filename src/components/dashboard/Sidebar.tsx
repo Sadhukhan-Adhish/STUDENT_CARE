@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, Link, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   GraduationCap,
@@ -11,6 +11,7 @@ import {
   TrendingUp,
   Bot,
   Settings,
+  User,
   LogOut,
   X,
   ChevronRight,
@@ -32,19 +33,6 @@ interface NavItem {
   badgeColor?: string;
 }
 
-const navItems: NavItem[] = [
-  { label: 'Overview', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Academic', path: '/dashboard/academic', icon: GraduationCap },
-  { label: 'Skills', path: '/dashboard/skills', icon: Sparkles, badge: 'Gap Alert' },
-  { label: 'Career', path: '/dashboard/career', icon: Briefcase },
-  { label: 'Roadmap', path: '/dashboard/roadmap', icon: Compass },
-  { label: 'Resume', path: '/dashboard/resume', icon: FileText, badge: 'ATS 84' },
-  { label: 'Projects', path: '/dashboard/projects', icon: FolderGit2, badge: '3 Active' },
-  { label: 'Progress', path: '/dashboard/progress', icon: TrendingUp },
-  { label: 'AI Assistant', path: '/dashboard/ai', icon: Bot, badge: 'Online', badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-  { label: 'Settings', path: '/dashboard/settings', icon: Settings },
-];
-
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -56,6 +44,41 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   };
 
   const student = user?.studentProfile || mockStudent;
+
+  const navItems: NavItem[] = [
+    { label: 'Overview', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Academic', path: '/dashboard/academic', icon: GraduationCap },
+    {
+      label: 'Skills',
+      path: '/dashboard/skills',
+      icon: Sparkles,
+      badge: user?.isGuest ? 'Gap Alert' : (student.skills?.filter(s => s.priority === 'High' && (s.gap ?? 0) > 0)?.length ? 'Gap Alert' : undefined),
+    },
+    { label: 'Career', path: '/dashboard/career', icon: Briefcase },
+    { label: 'Roadmap', path: '/dashboard/roadmap', icon: Compass },
+    {
+      label: 'Resume',
+      path: '/dashboard/resume',
+      icon: FileText,
+      badge: user?.isGuest ? 'ATS Demo' : undefined,
+    },
+    {
+      label: 'Projects',
+      path: '/dashboard/projects',
+      icon: FolderGit2,
+      badge: user?.isGuest ? '3 Demo' : (student.projects?.length ? `${student.projects.length} Active` : undefined),
+    },
+    { label: 'Progress', path: '/dashboard/progress', icon: TrendingUp },
+    {
+      label: 'AI Assistant',
+      path: '/dashboard/ai',
+      icon: Bot,
+      badge: 'Ready',
+      badgeColor: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+    },
+    { label: 'Profile', path: '/profile', icon: User },
+    { label: 'Settings', path: '/dashboard/settings', icon: Settings },
+  ];
 
   return (
     <>
@@ -99,24 +122,55 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
           </button>
         </div>
 
-        {/* Student Mini Card */}
-        <div className="p-3.5 mx-3 mt-3.5 rounded-xl bg-[#0F1420] border border-[#1C2436] flex items-center justify-between">
+        {/* Student Mini Card - Clicking routes to /profile */}
+        <Link
+          to="/profile"
+          onClick={onClose}
+          className="p-3 mx-3 mt-3 rounded-xl bg-[#0F1420] hover:bg-[#131A2B] border border-[#1C2436] hover:border-indigo-500/40 transition-all flex items-center justify-between group cursor-pointer"
+          title="View Student Profile"
+        >
           <div className="flex items-center gap-2.5 min-w-0">
-            <img
-              src={student.avatar}
-              alt={student.name}
-              className="w-9 h-9 rounded-full object-cover border border-indigo-500/40 flex-shrink-0"
-            />
+            <div className="relative">
+              <img
+                src={student.avatar}
+                alt={user?.isGuest ? 'Guest Student' : student.name}
+                className="w-9 h-9 rounded-full object-cover border border-indigo-500/40 flex-shrink-0"
+              />
+              {user?.isGuest ? (
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-[#0F1420]" />
+              ) : (
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#0F1420]" />
+              )}
+            </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold text-white truncate">{student.name}</p>
-              <p className="text-[11px] text-slate-400 truncate">Sem {student.currentSemester} • CGPA {student.cgpa}</p>
+              <p className="text-xs font-semibold text-white truncate group-hover:text-indigo-300 transition-colors">
+                {user?.isGuest ? 'Guest Student' : student.name}
+              </p>
+              <p className="text-[11px] text-slate-400 truncate">
+                {user?.isGuest
+                  ? 'Explore NEXORA'
+                  : student.cgpa
+                  ? `Sem ${student.currentSemester} • CGPA ${student.cgpa.toFixed(2)}`
+                  : `Sem ${student.currentSemester} • Active Student`}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded text-[11px] font-mono font-medium text-amber-400 flex-shrink-0">
-            <Flame className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-            <span>{student.learningStreakDays}d</span>
-          </div>
-        </div>
+
+          {user?.isGuest ? (
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex-shrink-0">
+              GUEST MODE
+            </span>
+          ) : student.learningStreakDays ? (
+            <div className="flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded text-[11px] font-mono font-medium text-amber-400 flex-shrink-0">
+              <Flame className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              <span>{student.learningStreakDays}d</span>
+            </div>
+          ) : (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex-shrink-0">
+              Active
+            </span>
+          )}
+        </Link>
 
         {/* Navigation List */}
         <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
@@ -185,7 +239,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
             className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium text-rose-400/90 hover:text-rose-300 bg-rose-500/5 hover:bg-rose-500/10 border border-rose-500/20 transition-all cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
+            <span>{user?.isGuest ? 'Exit Guest Mode' : 'Sign Out'}</span>
           </button>
         </div>
       </aside>

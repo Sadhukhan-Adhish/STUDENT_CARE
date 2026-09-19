@@ -45,19 +45,59 @@ export const ProgressPage: React.FC = () => {
   const { user } = useAuth();
   const student = user?.studentProfile || mockStudent;
 
+  const streakDays = student.learningStreakDays || 1;
+  const totalCredits = (student.semesters || []).reduce((sum, s) => sum + (s.credits || 20), 0) || 20;
+
+  const recentActivities = user?.isGuest
+    ? mockRecentActivities
+    : [
+        {
+          id: 'act-1',
+          text: 'Registered official student intelligence profile on NEXORA',
+          timestamp: 'Recent',
+          category: 'Account',
+        },
+        {
+          id: 'act-2',
+          text: `Configured primary target career: ${student.targetCareer || 'Engineering Specialization'}`,
+          timestamp: 'Recent',
+          category: 'Career',
+        },
+        ...(student.skills?.length
+          ? [
+              {
+                id: 'act-3',
+                text: `Initialized ${student.skills.length} target technical competencies`,
+                timestamp: 'Active',
+                category: 'Skills',
+              },
+            ]
+          : []),
+      ];
+
   return (
     <div className="space-y-6 pb-12 font-sans">
       <PageHeader
         title="Progress &amp; Achievements"
         subtitle="Verifiable learning telemetry, habit streaks, velocity charts, and platform accomplishment badges."
-        badge="Continuous Verification"
+        badge={user?.isGuest ? 'Guest Exploration' : 'Continuous Verification'}
         actions={
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 font-mono text-xs font-semibold">
             <Flame className="w-4 h-4 fill-amber-400 text-amber-400" />
-            <span>{student.learningStreakDays}-Day Active Streak</span>
+            <span>{user?.isGuest ? 'Demo Streak' : `${streakDays}-Day Active Streak`}</span>
           </div>
         }
       />
+
+      {/* First-Time Student Guidance Bar */}
+      <div className="p-3.5 rounded-xl bg-[#0F1424] border border-[#1B253D] flex items-center gap-3 text-xs text-slate-300">
+        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 flex-shrink-0">
+          <Award className="w-4 h-4" />
+        </div>
+        <p className="leading-relaxed">
+          <strong className="text-white font-medium">Progress Guidance:</strong> Your progress dashboard logs effort hours, project completions, and daily learning consistency. Regular platform check-ins maintain your streak and unlock milestone credentials.
+        </p>
+      </div>
 
       {/* Top 4 Velocity Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -90,10 +130,10 @@ export const ProgressPage: React.FC = () => {
         />
         <StatCard
           title="Curriculum Velocity"
-          value="136 Credits"
-          change="On Track (24 to Grad)"
+          value={`${totalCredits} Credits`}
+          change={user?.isGuest ? 'Sample Curriculum' : `Active (Sem ${student.currentSemester || 1})`}
           changeType="positive"
-          subtext="Sem 6 / 8 Completed"
+          subtext={user?.isGuest ? 'Sem 6 / 8 Demo Profile' : `Sem ${student.currentSemester || 1} / ${student.totalSemesters || 8} Active`}
           icon={Target}
           accentColor="emerald"
         />
@@ -149,7 +189,17 @@ export const ProgressPage: React.FC = () => {
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed mb-4">
-              You've logged code or coursework on NEXORA for <strong className="text-amber-400">14 consecutive days</strong>. Maintain this through Sunday to unlock the <strong className="text-white">Fortnight Master</strong> badge.
+              {user?.isGuest ? (
+                <>Exploring NEXORA habit tracking in Guest Mode with sample 14-day history.</>
+              ) : (
+                <>
+                  You&apos;ve logged code or coursework on NEXORA for{' '}
+                  <strong className="text-amber-400">
+                    {streakDays} consecutive {streakDays === 1 ? 'day' : 'days'}
+                  </strong>
+                  . Maintain regular activity to unlock the <strong className="text-white">Fortnight Master</strong> badge.
+                </>
+              )}
             </p>
 
             {/* Streak Grid Blocks */}
@@ -216,7 +266,7 @@ export const ProgressPage: React.FC = () => {
         <h2 className="text-lg font-bold text-white mt-0.5 mb-4">Complete Telemetry History</h2>
 
         <div className="divide-y divide-[#171F30]">
-          {mockRecentActivities.map((act) => (
+          {recentActivities.map((act) => (
             <div key={act.id} className="py-3 flex items-center justify-between text-xs">
               <div className="flex items-center gap-3">
                 <span className="w-2 h-2 rounded-full bg-indigo-400" />

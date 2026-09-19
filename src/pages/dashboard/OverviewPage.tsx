@@ -51,6 +51,34 @@ export const OverviewPage: React.FC = () => {
   const readiness = student.readinessScore ?? 0;
   const currentCgpa = student.cgpa ?? 0;
 
+  // Student specific recent activity vs demo preview
+  const recentActivities = user?.isGuest
+    ? mockRecentActivities
+    : [
+        {
+          id: 'act-init-1',
+          text: 'Registered student intelligence workspace on NEXORA',
+          timestamp: 'Recent',
+          category: 'Account',
+        },
+        {
+          id: 'act-init-2',
+          text: `Target career goal set to ${student.targetCareer || 'Engineering Specialization'}`,
+          timestamp: 'Recent',
+          category: 'Career',
+        },
+        ...(student.skills?.length
+          ? [
+              {
+                id: 'act-init-3',
+                text: `Initialized ${student.skills.length} target technical competencies`,
+                timestamp: 'Active',
+                category: 'Skills',
+              },
+            ]
+          : []),
+      ];
+
   return (
     <div className="space-y-6 pb-12 font-sans">
       {/* Dynamic Welcome Banner */}
@@ -61,33 +89,43 @@ export const OverviewPage: React.FC = () => {
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 text-xs font-semibold mb-3">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>
-                {student.college || student.university} • Semester {student.currentSemester}
+                {user?.isGuest ? 'Guest Exploration Mode' : (student.college || student.university)} • Semester {student.currentSemester}
               </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-heading">
-              Welcome back, {student.name}
+              {user?.isGuest ? 'Welcome to NEXORA' : `Welcome back, ${student.name}`}
             </h1>
             <p className="text-sm text-slate-300 mt-2 leading-relaxed">
-              <span className="text-white font-medium">{student.degree} {student.department} · Semester {student.currentSemester}</span>
-              <br />
-              Roll Number: <strong className="text-indigo-300 font-mono">{student.rollNumber}</strong> | Target Career:{' '}
-              <strong className="text-indigo-300">{student.targetCareer}</strong>
-              {currentCgpa > 0 && (
+              {user?.isGuest ? (
                 <>
-                  {' '}with CGPA of <strong className="text-emerald-400 font-mono">{currentCgpa.toFixed(2)}</strong>
+                  Exploring the 8 pillars of NEXORA Intelligence with preview student metrics.
+                  <br />
+                  Target Career Objective: <strong className="text-indigo-300">{student.targetCareer}</strong>.
+                </>
+              ) : (
+                <>
+                  <span className="text-white font-medium">{student.degree} {student.department} · Semester {student.currentSemester}</span>
+                  <br />
+                  Roll Number: <strong className="text-indigo-300 font-mono">{student.rollNumber}</strong> | Target Career:{' '}
+                  <strong className="text-indigo-300">{student.targetCareer}</strong>
+                  {currentCgpa > 0 && (
+                    <>
+                      {' '}with CGPA of <strong className="text-emerald-400 font-mono">{currentCgpa.toFixed(2)}</strong>
+                    </>
+                  )}
+                  .
                 </>
               )}
-              .
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             <button
-              onClick={() => navigate('/dashboard/profile')}
+              onClick={() => navigate('/profile')}
               className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-200 bg-[#141B2B] hover:bg-[#1A2338] border border-[#232F4A] transition-all flex items-center gap-2 cursor-pointer"
             >
               <UserCheck className="w-4 h-4 text-indigo-400" />
-              <span>Edit Profile</span>
+              <span>Student Profile</span>
             </button>
             <button
               onClick={() => navigate('/dashboard/skills')}
@@ -99,6 +137,34 @@ export const OverviewPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* First-Time Student Guidance Banner */}
+      {!user?.isGuest && (!hasAcademicHistory || skills.length === 0) && (
+        <div className="p-4 rounded-xl bg-gradient-to-r from-indigo-950/40 via-purple-950/20 to-[#0C101A] border border-indigo-500/30 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400 mt-0.5">
+              <Compass className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white font-mono uppercase tracking-wider">
+                Getting Started with Your Student Intelligence Dashboard
+              </h3>
+              <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                NEXORA connects your academic performance to career requirements. Set up your <strong>Academic</strong> courses, verify your <strong>Skills</strong>, and discover personalized <strong>Projects</strong> for {student.targetCareer || 'your career goal'}.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => navigate('/dashboard/academic')}
+              className="px-3.5 py-2 rounded-lg text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <span>Set Up Coursework</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Top 5 Metric Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -140,10 +206,10 @@ export const OverviewPage: React.FC = () => {
         />
         <StatCard
           title="Learning Streak"
-          value={`${student.learningStreakDays || 0} Days`}
-          change="Study Streak"
+          value={user?.isGuest ? 'Demo' : `${student.learningStreakDays || 1} ${student.learningStreakDays === 1 ? 'Day' : 'Days'}`}
+          change={user?.isGuest ? 'Sample Cadence' : 'Active Cadence'}
           changeType="positive"
-          subtext="Daily platform cadence"
+          subtext={user?.isGuest ? 'Preview exploration streak' : 'Daily platform cadence'}
           icon={Flame}
           accentColor="amber"
         />
@@ -447,7 +513,7 @@ export const OverviewPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {mockRecentActivities.map((act) => (
+              {recentActivities.map((act) => (
                 <div key={act.id} className="flex items-start gap-3 text-xs">
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 flex-shrink-0" />
                   <div className="flex-1 min-w-0">

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   User,
   Shield,
@@ -195,44 +196,64 @@ export const SettingsPage: React.FC = () => {
               <div>
                 <h3 className="text-base font-bold text-white">Security &amp; Authentication</h3>
                 <p className="text-xs text-slate-400 mt-1">
-                  Manage password credentials and future Firebase authentication hooks.
+                  Manage student credentials, roll number identification, and account access.
                 </p>
               </div>
 
               <div className="p-4 rounded-xl bg-[#111626] border border-[#1E283C] space-y-3">
-                <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
-                  Current Session: Mock Authentication
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                    {user?.isGuest ? 'Current Session: Guest Exploration Mode' : 'Current Session: Verified Student Profile'}
+                  </span>
+                  <span className={`text-[10px] font-mono px-2 py-0.5 rounded ${user?.isGuest ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'}`}>
+                    {user?.isGuest ? 'Guest Mode' : 'Active Student'}
+                  </span>
+                </div>
                 <p className="text-xs text-slate-300">
-                  You are logged in as <strong>{student.name}</strong> ({student.email}). When Firebase Auth is provisioned, this interface will link directly to your Google or Email provider.
+                  {user?.isGuest
+                    ? 'You are currently exploring NEXORA using sample guest student data. To store personal coursework, projects, and target career goals permanently, create a registered student profile.'
+                    : `Signed in as ${student.name} (${student.email}). University Roll Number: ${student.rollNumber}.`}
                 </p>
+                {user?.isGuest && (
+                  <Link
+                    to="/signup"
+                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-colors shadow-sm"
+                  >
+                    Create Registered Account →
+                  </Link>
+                )}
               </div>
 
-              <div className="space-y-3 pt-2">
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">New Password</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••••••"
-                    className="w-full bg-[#101522] border border-[#1E2638] rounded-xl px-3.5 py-2 text-xs text-white font-sans"
-                  />
+              {!user?.isGuest && (
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1.5">New Password</label>
+                    <input
+                      type="password"
+                      placeholder="••••••••••••"
+                      className="w-full bg-[#101522] border border-[#1E2638] rounded-xl px-3.5 py-2 text-xs text-white font-sans"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-300 mb-1.5">Confirm New Password</label>
+                    <input
+                      type="password"
+                      placeholder="••••••••••••"
+                      className="w-full bg-[#101522] border border-[#1E2638] rounded-xl px-3.5 py-2 text-xs text-white font-sans"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSaveSuccess(true);
+                      setTimeout(() => setSaveSuccess(false), 3000);
+                    }}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#161E30] hover:bg-[#1E2942] text-slate-200 border border-[#232F4A] transition-all cursor-pointer"
+                  >
+                    Update Password
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Confirm New Password</label>
-                  <input
-                    type="password"
-                    placeholder="••••••••••••"
-                    className="w-full bg-[#101522] border border-[#1E2638] rounded-xl px-3.5 py-2 text-xs text-white font-sans"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => alert('Password update simulated in demo mode.')}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#161E30] hover:bg-[#1E2942] text-slate-200 border border-[#232F4A] transition-all cursor-pointer"
-                >
-                  Update Password
-                </button>
-              </div>
+              )}
             </div>
           )}
 

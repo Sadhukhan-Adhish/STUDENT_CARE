@@ -19,7 +19,9 @@ export interface Subject {
   name: string;
   credits: number;
   semester?: number | string; // e.g. 1-8 or "Semester 3"
+  semesterNumber?: number;
   // Optional academic fields
+  marks?: number;
   internalMarks?: number;
   externalMarks?: number;
   totalMarks?: number;
@@ -58,6 +60,7 @@ export interface Skill {
   name: string;
   proficiency?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   currentLevel: number; // 0 - 100
+  score?: number;
   certification?: string;
   experience?: string;
   category?: 'Programming' | 'AI & ML' | 'Databases & Web' | 'DevOps & Tools' | string;
@@ -77,10 +80,11 @@ export interface Project {
   tagline?: string;
   description: string;
   technologies: string[];
+  techStack?: string[];
   skillsUsed?: string[];
   skillsCovered?: string[];
   skillGapAddressed?: string;
-  status: 'Planned' | 'In Progress' | 'Completed' | 'Recommended';
+  status: 'Planned' | 'In Progress' | 'Completed' | 'Recommended' | 'Idea';
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
   progress?: number;
   estimatedHours?: number;
@@ -96,6 +100,25 @@ export interface CareerGoal {
   customRole?: string;
   secondaryRole?: string;
   industryTrack?: string;
+}
+
+export interface SkillGoal {
+  id: string;
+  skill: string;
+  currentLevel: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+  targetLevel: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+  reason?: string;
+  category?: string;
+}
+
+export interface CollegeSyllabusItem {
+  id: string;
+  semester: number;
+  title?: string;
+  fileName?: string;
+  fileSize?: string;
+  uploadedAt?: string;
+  notes?: string;
 }
 
 export interface Progress {
@@ -122,6 +145,10 @@ export interface StudentProfile {
   currentSemester: number;
   totalSemesters?: number;
 
+  // Onboarding status & telemetry
+  onboardingCompleted?: boolean;
+  onboardingStep?: number;
+
   // Structured modular sub-profiles
   institution?: Institution;
   academic?: AcademicProfile;
@@ -130,6 +157,7 @@ export interface StudentProfile {
 
   // Direct access fields for existing dashboard compatibility
   cgpa?: number;
+  sgpa?: number;
   targetCgpa?: number;
   targetCareer: string;
   secondaryTargetCareer?: string;
@@ -144,7 +172,9 @@ export interface StudentProfile {
   semesters?: AcademicSemester[];
   subjects?: SubjectPerformance[];
   skills?: SkillItem[];
+  ownSkillUp?: SkillGoal[];
   projects?: ProjectItem[];
+  syllabus?: CollegeSyllabusItem[];
 }
 
 export interface CareerPath {
@@ -181,25 +211,7 @@ export interface RoadmapStage {
   tasks: RoadmapTask[];
 }
 
-export interface ProjectItem {
-  id: string;
-  title: string;
-  name?: string;
-  tagline?: string;
-  description: string;
-  category?: 'Machine Learning' | 'Full Stack' | 'Cloud & Systems' | 'Computer Vision' | 'AI / ML' | 'Distributed Systems' | 'DevOps & Cloud' | string;
-  difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | string;
-  status: 'Recommended' | 'In Progress' | 'Completed' | 'Planned';
-  progress?: number;
-  technologies: string[];
-  skillsCovered?: string[];
-  skillGapAddressed?: string;
-  estimatedHours?: number;
-  githubUrl?: string;
-  githubLink?: string;
-  demoUrl?: string;
-  projectLink?: string;
-}
+export type ProjectItem = Project;
 
 export interface AchievementBadge {
   id: string;
@@ -211,11 +223,11 @@ export interface AchievementBadge {
 }
 
 export const mockStudent: StudentProfile = {
-  id: 'nex-std-7709',
-  rollNumber: '22CS084',
-  name: 'Alex Chen',
-  email: 'alex.chen@university.edu',
-  avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+  id: 'nex-std-guest-demo',
+  rollNumber: 'GUEST-DEMO',
+  name: 'Guest Student',
+  email: 'guest@nexora.demo',
+  avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GuestStudent',
   university: 'Pacific Institute of Technology',
   degree: 'Bachelor of Technology (B.Tech)',
   department: 'Computer Science & Artificial Intelligence',
@@ -229,11 +241,13 @@ export const mockStudent: StudentProfile = {
   skillScore: 82,
   learningStreakDays: 14,
   totalHoursStudied: 184,
-  phone: '+1 (555) 234-5678',
-  bio: 'Junior studying CS & AI. Passionate about machine learning pipelines, deep learning algorithms, and distributed backend systems.',
-  githubUrl: 'https://github.com/alexchen',
-  linkedinUrl: 'https://linkedin.com/in/alexchen-dev',
+  phone: '',
+  bio: 'Guest demonstration student profile for previewing NEXORA student intelligence features.',
+  githubUrl: '',
+  linkedinUrl: '',
 };
+
+export const sampleGuestStudent: StudentProfile = mockStudent;
 
 export const mockAcademicSemesters: AcademicSemester[] = [
   { semester: 'Sem 1', sgpa: 8.2, cgpa: 8.2, credits: 21 },
@@ -414,7 +428,7 @@ export const mockProjects: ProjectItem[] = [
     skillsCovered: ['Python', 'FastAPI', 'Vector Search', 'React', 'Prompt Engineering'],
     skillGapAddressed: 'FastAPI & Vector Database Integration (+18%)',
     estimatedHours: 45,
-    githubUrl: 'https://github.com/alexchen/ai-study-assistant',
+    githubUrl: 'https://github.com/sample-student/ai-study-assistant',
     demoUrl: 'https://study-assistant.preview.app',
   },
   {
@@ -430,7 +444,7 @@ export const mockProjects: ProjectItem[] = [
     skillsCovered: ['Data Science', 'Machine Learning', 'Feature Engineering', 'Statistical Analysis'],
     skillGapAddressed: 'Ensemble Learning & Feature Selection (+22%)',
     estimatedHours: 60,
-    githubUrl: 'https://github.com/alexchen/landslide-risk-ml',
+    githubUrl: 'https://github.com/sample-student/landslide-risk-ml',
   },
   {
     id: 'proj-3',
@@ -445,7 +459,7 @@ export const mockProjects: ProjectItem[] = [
     skillsCovered: ['SQL', 'Database Normalization', 'React', 'Data Visualization'],
     skillGapAddressed: 'SQL Query Optimization & Real-Time Aggregations (+15%)',
     estimatedHours: 40,
-    githubUrl: 'https://github.com/alexchen/smart-finance-tracker',
+    githubUrl: 'https://github.com/sample-student/smart-finance-tracker',
   },
   {
     id: 'proj-4',
@@ -482,7 +496,7 @@ export const mockResumeAnalysis = {
   matchPercentage: 82,
   targetRole: 'Machine Learning Engineer',
   atsStatus: 'Pass (High Potential)',
-  fileName: 'Alex_Chen_ML_Resume_2026.pdf',
+  fileName: 'Sample_Student_ML_Resume.pdf',
   uploadedAt: 'Sep 12, 2026',
   detectedSkills: [
     'Python (NumPy, Pandas, Scikit-Learn)',

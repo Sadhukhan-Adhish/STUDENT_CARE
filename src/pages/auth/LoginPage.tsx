@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Lock, UserCheck, ArrowRight, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Lock, UserCheck, ArrowRight, AlertCircle, Compass } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const LoginPage: React.FC = () => {
@@ -11,7 +11,7 @@ export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { login } = useAuth();
+  const { login, enterGuestMode } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -30,6 +30,18 @@ export const LoginPage: React.FC = () => {
       navigate('/dashboard');
     } catch (err: any) {
       setError(err?.message || 'Authentication failed. Please verify your credentials.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleGuestAccess = async () => {
+    setIsSubmitting(true);
+    try {
+      await enterGuestMode();
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError('Unable to enter guest preview. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -94,13 +106,12 @@ export const LoginPage: React.FC = () => {
               <label htmlFor="password" className="block text-xs font-semibold uppercase tracking-wider text-slate-300 font-mono">
                 Password
               </label>
-              <button
-                type="button"
-                onClick={() => setError('Contact your university department administrator to reset your password.')}
+              <Link
+                to="/forgot-password"
                 className="text-xs text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer"
               >
-                Forgot Password
-              </button>
+                Forgot Password?
+              </Link>
             </div>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -153,6 +164,30 @@ export const LoginPage: React.FC = () => {
             )}
           </button>
         </form>
+
+        {/* Guest Mode Divider & Button */}
+        <div className="relative my-5">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-[#1C2436]" />
+          </div>
+          <div className="relative flex justify-center text-[11px] uppercase tracking-wider font-mono">
+            <span className="bg-[#0D121C] px-3 text-slate-500">Or explore first</span>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGuestAccess}
+          disabled={isSubmitting}
+          className="w-full py-2.5 px-4 rounded-xl text-xs font-semibold bg-[#121826] hover:bg-[#182032] text-slate-200 border border-[#222D42] hover:border-indigo-500/40 transition-all flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <Compass className="w-4 h-4 text-indigo-400" />
+          <span>Continue as Guest</span>
+          <span className="text-[10px] font-mono text-slate-400 px-1.5 py-0.5 rounded bg-[#182133] ml-1">Sample Data</span>
+        </button>
+        <p className="text-[11px] text-slate-400 text-center mt-1.5">
+          Explore dashboard and modules with sample demo data. No credentials required.
+        </p>
 
         {/* Footer Link */}
         <div className="mt-6 pt-6 border-t border-[#1C2436] text-center">

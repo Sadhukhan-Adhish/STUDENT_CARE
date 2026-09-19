@@ -5,6 +5,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/auth/LoginPage';
 import { SignupPage } from './pages/auth/SignupPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import { OnboardingPage } from './pages/onboarding/OnboardingPage';
 import { DashboardLayout } from './components/dashboard/DashboardLayout';
 
 // Dashboard Pages
@@ -18,17 +19,19 @@ import { ProjectsPage } from './pages/dashboard/ProjectsPage';
 import { ProgressPage } from './pages/dashboard/ProgressPage';
 import { AiAssistantPage } from './pages/dashboard/AiAssistantPage';
 import { SettingsPage } from './pages/dashboard/SettingsPage';
+import { ProfilePage } from './pages/dashboard/ProfilePage';
 
 export function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public Routes */}
+          {/* Public & Auth Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/onboarding" element={<OnboardingPage />} />
 
           {/* Authenticated Dashboard Routes */}
           <Route path="/dashboard" element={<DashboardLayout />}>
@@ -42,6 +45,12 @@ export function App() {
             <Route path="progress" element={<ProgressPage />} />
             <Route path="ai" element={<AiAssistantPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="profile" element={<ProfilePage />} />
+          </Route>
+
+          {/* Direct Profile Route pointing to DashboardLayout with ProfilePage */}
+          <Route path="/profile" element={<DashboardLayout />}>
+            <Route index element={<ProfilePage />} />
           </Route>
 
           {/* Fallback Catch-all Route */}

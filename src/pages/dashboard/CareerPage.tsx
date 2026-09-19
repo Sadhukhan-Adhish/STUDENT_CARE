@@ -34,7 +34,7 @@ export const CareerPage: React.FC = () => {
       <PageHeader
         title="Career Intelligence"
         subtitle="Market-calibrated career trajectory recommendations based on your verified coursework and technical skill matrix."
-        badge="Market Data Engine"
+        badge={user?.isGuest ? 'Guest Exploration' : 'Market Data Engine'}
         actions={
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono text-slate-400">Primary Target:</span>
@@ -44,6 +44,16 @@ export const CareerPage: React.FC = () => {
           </div>
         }
       />
+
+      {/* First-Time Student Guidance Bar */}
+      <div className="p-3.5 rounded-xl bg-[#0F1424] border border-[#1B253D] flex items-center gap-3 text-xs text-slate-300">
+        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 flex-shrink-0">
+          <Briefcase className="w-4 h-4" />
+        </div>
+        <p className="leading-relaxed">
+          <strong className="text-white font-medium">Career Intelligence Guidance:</strong> Explore market compensation, industry demand, and missing technical skills for your primary target: <strong>{student.targetCareer}</strong>. Setting a primary target recalibrates your skills hub, projects, and roadmap.
+        </p>
+      </div>
 
       {/* Demo Disclaimer Notice */}
       <div className="p-4 rounded-xl bg-[#0F1422] border border-[#1F293D] flex items-center justify-between text-xs text-slate-400">

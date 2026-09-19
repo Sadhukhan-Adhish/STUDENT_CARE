@@ -26,7 +26,9 @@ export const ResumePage: React.FC = () => {
   });
   const [isUploading, setIsUploading] = useState(false);
   const [showAtsPreview, setShowAtsPreview] = useState(false);
-  const [activeFileName, setActiveFileName] = useState(mockResumeAnalysis.fileName);
+  const [activeFileName, setActiveFileName] = useState(
+    user?.isGuest ? 'sample_engineering_resume.pdf' : `${student.name.toLowerCase().replace(/\s+/g, '_')}_resume.pdf`
+  );
 
   const studentSkills = (student.skills || []).map((s) => s.name);
   const combinedDetectedSkills = Array.from(new Set([...analysis.detectedSkills, ...studentSkills]));
@@ -98,8 +100,12 @@ export const ResumePage: React.FC = () => {
     <div className="space-y-6 pb-12 font-sans">
       <PageHeader
         title="Resume Intelligence &amp; ATS Optimization"
-        subtitle={`Automated semantic parsing, keyword gap matching, and quantifiable impact benchmarking for ${student.name}.`}
-        badge="ATS Parsing Engine"
+        subtitle={
+          user?.isGuest
+            ? 'Sample semantic parsing, keyword gap matching, and quantifiable impact benchmarking in Guest Mode.'
+            : `Automated semantic parsing, keyword gap matching, and quantifiable impact benchmarking for ${student.name}.`
+        }
+        badge={user?.isGuest ? 'Guest Exploration' : 'ATS Parsing Engine'}
         actions={
           <div className="flex items-center gap-3">
             <span className="text-xs font-mono text-slate-400">Target Role:</span>
@@ -116,6 +122,16 @@ export const ResumePage: React.FC = () => {
           </div>
         }
       />
+
+      {/* First-Time Student Guidance Bar */}
+      <div className="p-3.5 rounded-xl bg-[#0F1424] border border-[#1B253D] flex items-center gap-3 text-xs text-slate-300">
+        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 flex-shrink-0">
+          <FileCheck className="w-4 h-4" />
+        </div>
+        <p className="leading-relaxed">
+          <strong className="text-white font-medium">Resume &amp; ATS Guidance:</strong> Upload your existing resume or export structured student data. NEXORA evaluates resume keyword coverage against <strong>{student.targetCareer}</strong> job listings and highlights critical gaps before you apply.
+        </p>
+      </div>
 
       {/* Upload Zone & Resume Score Top Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

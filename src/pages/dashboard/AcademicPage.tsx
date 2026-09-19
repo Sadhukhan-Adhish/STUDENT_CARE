@@ -230,8 +230,12 @@ export const AcademicPage: React.FC = () => {
     <div className="space-y-6 pb-12 font-sans">
       <PageHeader
         title="Academic Performance & Coursework"
-        subtitle={`Live transcript analysis, semester SGPA telemetry, and coursework management for Roll Number ${student.rollNumber}.`}
-        badge={`Semester ${student.currentSemester} Active`}
+        subtitle={
+          user?.isGuest
+            ? 'Preview transcript analysis, semester SGPA telemetry, and coursework management in Guest Mode.'
+            : `Live transcript analysis, semester SGPA telemetry, and coursework management for Roll Number ${student.rollNumber}.`
+        }
+        badge={user?.isGuest ? 'Guest Exploration' : `Semester ${student.currentSemester} Active`}
         actions={
           <div className="flex items-center gap-2.5">
             <button
@@ -251,6 +255,16 @@ export const AcademicPage: React.FC = () => {
           </div>
         }
       />
+
+      {/* First-Time Student Guidance Bar */}
+      <div className="p-3.5 rounded-xl bg-[#0F1424] border border-[#1B253D] flex items-center gap-3 text-xs text-slate-300">
+        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 flex-shrink-0">
+          <BookOpen className="w-4 h-4" />
+        </div>
+        <p className="leading-relaxed">
+          <strong className="text-white font-medium">Academic Guidance:</strong> Your coursework records power NEXORA's skill-gap engine. Log your current courses, internal marks, and semester SGPA to automatically unlock personalized project suggestions and career roadmap stages.
+        </p>
+      </div>
 
       {/* Top Academic Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -325,15 +339,19 @@ export const AcademicPage: React.FC = () => {
           </div>
           <div>
             <h3 className="text-sm font-bold text-white">
-              Academic Record for {student.name} ({student.department || student.degree})
+              {user?.isGuest ? 'Guest Demonstration Curriculum' : `Academic Record for ${student.name} (${student.department || student.degree})`}
             </h3>
             <p className="text-xs text-slate-300 mt-1 max-w-3xl leading-relaxed">
-              Enrolled in <strong className="text-white">{student.college || student.university}</strong>. Currently in Semester {student.currentSemester} with {subjects.length} tracked subjects. Target Career: <span className="text-indigo-300 font-semibold">{student.targetCareer}</span>.
+              {user?.isGuest ? (
+                <>Sample engineering coursework shown in Guest Mode. Explore courses, add custom subjects, or create your permanent student profile.</>
+              ) : (
+                <>Enrolled in <strong className="text-white">{student.college || student.university}</strong>. Currently in Semester {student.currentSemester} with {subjects.length} tracked subjects. Target Career: <span className="text-indigo-300 font-semibold">{student.targetCareer}</span>.</>
+              )}
             </p>
           </div>
         </div>
         <div className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#141B2B] border border-[#212C42] text-xs font-mono text-amber-300">
-          Roll No: {student.rollNumber}
+          Roll No: {user?.isGuest ? 'GUEST-DEMO' : student.rollNumber}
         </div>
       </div>
 

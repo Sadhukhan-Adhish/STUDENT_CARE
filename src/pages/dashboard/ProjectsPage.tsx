@@ -76,7 +76,7 @@ export const ProjectsPage: React.FC = () => {
     setFormProgress(25);
     setFormTech('React, TypeScript, Tailwind');
     setFormGap(`Resolves ${student.targetCareer} portfolio requirement`);
-    setFormGithub('https://github.com/alexchen');
+    setFormGithub(user?.isGuest ? 'https://github.com/sample-student' : '');
     setFormDemo('');
     setIsAddModalOpen(true);
   };
@@ -163,7 +163,7 @@ export const ProjectsPage: React.FC = () => {
       <PageHeader
         title="Project Lab &amp; Portfolios"
         subtitle={`Proof-of-work assignments and completed implementations eliminating skill deficits for ${student.targetCareer}.`}
-        badge={`Student Roll No: ${student.rollNumber}`}
+        badge={user?.isGuest ? 'Guest Exploration' : `Roll No: ${student.rollNumber}`}
         actions={
           <button
             onClick={openAddModal}
@@ -174,6 +174,16 @@ export const ProjectsPage: React.FC = () => {
           </button>
         }
       />
+
+      {/* First-Time Student Guidance Bar */}
+      <div className="p-3.5 rounded-xl bg-[#0F1424] border border-[#1B253D] flex items-center gap-3 text-xs text-slate-300">
+        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 flex-shrink-0">
+          <FolderGit2 className="w-4 h-4" />
+        </div>
+        <p className="leading-relaxed">
+          <strong className="text-white font-medium">Projects Guidance:</strong> Hands-on projects convert academic theory into verified proof-of-work. Start recommended capstones calibrated for {student.targetCareer} or log your own repository builds to address highlighted skill deficits.
+        </p>
+      </div>
 
       {/* Top 3 Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

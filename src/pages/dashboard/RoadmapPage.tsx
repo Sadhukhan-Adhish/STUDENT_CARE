@@ -70,8 +70,8 @@ export const RoadmapPage: React.FC = () => {
     <div className="space-y-6 pb-12 font-sans">
       <PageHeader
         title="Personalized Learning Roadmap"
-        subtitle="Adaptive step-by-step career path tailored for your target role as a Machine Learning Engineer."
-        badge={`Milestone ${completedStages} of ${stages.length} Achieved`}
+        subtitle={`Adaptive step-by-step career path tailored for your target role as a ${student.targetCareer}.`}
+        badge={user?.isGuest ? 'Guest Exploration' : `Milestone ${completedStages} of ${stages.length} Achieved`}
         actions={
           <div className="flex items-center gap-1.5 bg-[#121826] p-1 rounded-lg border border-[#1D273C]">
             {['All', 'In Progress', 'Completed', 'Upcoming'].map((status) => (
@@ -90,6 +90,16 @@ export const RoadmapPage: React.FC = () => {
           </div>
         }
       />
+
+      {/* First-Time Student Guidance Bar */}
+      <div className="p-3.5 rounded-xl bg-[#0F1424] border border-[#1B253D] flex items-center gap-3 text-xs text-slate-300">
+        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 flex-shrink-0">
+          <Compass className="w-4 h-4" />
+        </div>
+        <p className="leading-relaxed">
+          <strong className="text-white font-medium">Roadmap Guidance:</strong> Your milestone path guides you from academic fundamentals through advanced industry specializations for <strong>{student.targetCareer}</strong>. Check off tasks as you finish them to automatically advance your stage readiness.
+        </p>
+      </div>
 
       {/* Top Roadmap Progress Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

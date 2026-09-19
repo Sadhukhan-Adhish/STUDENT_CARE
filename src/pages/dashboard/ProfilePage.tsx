@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   User,
   GraduationCap,
@@ -19,6 +20,8 @@ import {
   ShieldCheck,
   Save,
   X,
+  AlertCircle,
+  UserPlus,
 } from 'lucide-react';
 import { PageHeader, StatCard, ProgressBar } from '../../components/common/UIComponents';
 import { useAuth } from '../../context/AuthContext';
@@ -31,7 +34,7 @@ export const ProfilePage: React.FC = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
-  // Form states
+  // Form states - initialized with actual student data, never inventing fake defaults
   const [name, setName] = useState(student.name);
   const [rollNumber, setRollNumber] = useState(student.rollNumber);
   const [university, setUniversity] = useState(student.university);
@@ -43,10 +46,10 @@ export const ProfilePage: React.FC = () => {
   const [secondaryCareer, setSecondaryCareer] = useState(student.secondaryTargetCareer || '');
   const [targetCgpa, setTargetCgpa] = useState(student.targetCgpa || 9.0);
   const [email, setEmail] = useState(student.email);
-  const [phone, setPhone] = useState(student.phone || '+1 (555) 234-5678');
+  const [phone, setPhone] = useState(student.phone || '');
   const [bio, setBio] = useState(student.bio || '');
-  const [githubUrl, setGithubUrl] = useState(student.githubUrl || 'https://github.com');
-  const [linkedinUrl, setLinkedinUrl] = useState(student.linkedinUrl || 'https://linkedin.com');
+  const [githubUrl, setGithubUrl] = useState(student.githubUrl || '');
+  const [linkedinUrl, setLinkedinUrl] = useState(student.linkedinUrl || '');
 
   const handleStartEdit = () => {
     setName(student.name);
@@ -91,16 +94,19 @@ export const ProfilePage: React.FC = () => {
     setTimeout(() => setSaveSuccess(false), 3500);
   };
 
-  const totalCredits = (student.subjects || []).reduce((acc, s) => acc + (s.credits || 3), 0) + 110;
+  // Accurate credit count without arbitrary inflation
+  const totalCredits = (student.subjects || []).reduce((acc, s) => acc + (s.credits || 0), 0);
   const activeSkillsCount = (student.skills || []).length;
   const activeProjectsCount = (student.projects || []).length;
+
+  const isProfileIncomplete = !user?.isGuest && (!student.phone || !student.bio || !student.githubUrl || !student.linkedinUrl);
 
   return (
     <div className="space-y-6 pb-12 font-sans">
       <PageHeader
         title="Student Profile & Identification"
         subtitle="Institutional credentials, verified academic enrollment, and personalized career baseline telemetry."
-        badge="Official Student Record"
+        badge={user?.isGuest ? 'Guest Exploration Profile' : 'Official Student Record'}
         actions={
           <div className="flex items-center gap-2.5">
             <button
@@ -110,19 +116,78 @@ export const ProfilePage: React.FC = () => {
               <Edit3 className="w-3.5 h-3.5" />
               <span>Edit Profile Details</span>
             </button>
-            <button
-              onClick={() => {
-                resetToDemoStudent();
-              }}
-              className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-[#121826] hover:bg-[#182030] border border-[#1E2638] transition-all flex items-center gap-1.5 cursor-pointer"
-              title="Reset to default demo data"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Reset Demo</span>
-            </button>
+            {user?.isGuest && (
+              <button
+                onClick={() => {
+                  resetToDemoStudent();
+                }}
+                className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 bg-[#121826] hover:bg-[#182030] border border-[#1E2638] transition-all flex items-center gap-1.5 cursor-pointer"
+                title="Reset to default demo data"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Reset Demo</span>
+              </button>
+            )}
           </div>
         }
       />
+
+      {/* Guest Exploration Banner */}
+      {user?.isGuest && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-300 mt-0.5">
+              <User className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono font-bold uppercase px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  GUEST MODE
+                </span>
+                <h3 className="text-sm font-bold text-white">
+                  Exploration &amp; Demo Account
+                </h3>
+              </div>
+              <p className="text-xs text-slate-300 mt-1">
+                You are currently exploring NEXORA in Guest Mode. Sample data is shown for preview purposes. Create a permanent student account to record your own academic trajectory.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/signup"
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-all flex items-center gap-1.5 cursor-pointer flex-shrink-0 shadow-md shadow-indigo-600/30"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span>Create Student Account</span>
+          </Link>
+        </div>
+      )}
+
+      {/* Complete Your Profile Prompt for New / Incomplete Students */}
+      {isProfileIncomplete && (
+        <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 mt-0.5">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                Complete Your Profile
+              </h3>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Add your contact phone, biography, and professional links so NEXORA can personalize recommendations.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleStartEdit}
+            className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 transition-all flex items-center gap-1.5 cursor-pointer flex-shrink-0 shadow-md shadow-indigo-600/30"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>Complete Profile Details</span>
+          </button>
+        </div>
+      )}
 
       {saveSuccess && (
         <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2 animate-in fade-in">
@@ -140,40 +205,47 @@ export const ProfilePage: React.FC = () => {
             <div className="relative">
               <img
                 src={student.avatar}
-                alt={student.name}
+                alt={user?.isGuest ? 'Guest Student' : student.name}
                 className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover border-2 border-indigo-500/50 shadow-xl shadow-indigo-600/20"
               />
-              <span className="absolute -bottom-1 -right-1 px-2 py-0.5 rounded-md bg-emerald-500 text-slate-950 text-[10px] font-bold font-mono uppercase tracking-wider">
-                Active
+              <span className={`absolute -bottom-1 -right-1 px-2 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider ${
+                user?.isGuest ? 'bg-amber-400 text-slate-950' : 'bg-emerald-500 text-slate-950'
+              }`}>
+                {user?.isGuest ? 'Guest' : 'Active'}
               </span>
             </div>
 
             <div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <h1 className="text-2xl font-extrabold text-white tracking-tight font-heading">
-                  {student.name}
+                  {user?.isGuest ? 'Guest Student' : student.name}
                 </h1>
                 <span className="px-2.5 py-0.5 rounded-lg bg-indigo-500/20 border border-indigo-400/30 text-indigo-300 font-mono text-xs font-bold">
-                  Roll No: {student.rollNumber}
+                  Roll No: {user?.isGuest ? 'GUEST-DEMO' : student.rollNumber}
                 </span>
+                {user?.isGuest && (
+                  <span className="px-2.5 py-0.5 rounded-lg bg-amber-500/20 border border-amber-400/30 text-amber-300 font-mono text-xs font-bold">
+                    GUEST MODE
+                  </span>
+                )}
               </div>
 
               <p className="text-xs sm:text-sm text-slate-300 mt-1 flex items-center gap-1.5 flex-wrap">
                 <Building className="w-3.5 h-3.5 text-slate-400 inline" />
-                <span>{student.university}</span>
+                <span>{user?.isGuest ? 'NEXORA Exploration Platform' : student.university}</span>
                 <span className="text-slate-500">•</span>
-                <span>{student.degree}</span>
+                <span>{user?.isGuest ? 'Platform Preview' : student.degree}</span>
               </p>
 
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <span className="px-2.5 py-1 rounded-md bg-[#131B2D] border border-[#1F2C46] text-[11px] font-medium text-slate-300">
-                  {student.department}
+                  {user?.isGuest ? 'Computer Science & AI (Demo)' : student.department}
                 </span>
                 <span className="px-2.5 py-1 rounded-md bg-[#131B2D] border border-[#1F2C46] text-[11px] font-mono text-indigo-300">
-                  Semester {student.currentSemester} (Class of {student.graduationYear})
+                  {user?.isGuest ? 'Preview Account' : `Semester ${student.currentSemester} (Class of ${student.graduationYear})`}
                 </span>
                 <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[11px] font-mono font-semibold text-emerald-400">
-                  CGPA: {student.cgpa !== undefined ? student.cgpa.toFixed(2) : 'Pending'}
+                  CGPA: {user?.isGuest ? 'Demo Sample' : (student.cgpa !== undefined ? student.cgpa.toFixed(2) : 'Pending')}
                 </span>
               </div>
             </div>
@@ -185,12 +257,14 @@ export const ProfilePage: React.FC = () => {
             </span>
             <div className="text-sm font-bold text-white flex items-center gap-2">
               <Briefcase className="w-4 h-4 text-indigo-400" />
-              <span>{student.targetCareer}</span>
+              <span>{student.targetCareer || 'Career Goal Pending'}</span>
             </div>
             <div className="mt-3">
               <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
                 <span>Role Readiness</span>
-                <span className="font-mono text-indigo-300 font-semibold">{student.readinessScore || 0}%</span>
+                <span className="font-mono text-indigo-300 font-semibold">
+                  {student.readinessScore !== undefined ? `${student.readinessScore}%` : 'Pending'}
+                </span>
               </div>
               <ProgressBar progress={student.readinessScore || 0} color="indigo" />
             </div>
@@ -202,8 +276,8 @@ export const ProfilePage: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Current CGPA"
-          value={student.cgpa !== undefined ? student.cgpa.toFixed(2) : 'Pending'}
-          change={`Target: ${student.targetCgpa || 9.0}`}
+          value={user?.isGuest ? '8.74 (Demo)' : (student.cgpa !== undefined ? student.cgpa.toFixed(2) : 'Pending')}
+          change={student.targetCgpa ? `Target: ${student.targetCgpa}` : 'Target: 9.0'}
           changeType="positive"
           subtext="Dynamic credit-weighted GPA"
           icon={Award}
@@ -214,14 +288,14 @@ export const ProfilePage: React.FC = () => {
           value={(student.subjects || []).length.toString()}
           change={`${totalCredits} Total Credits`}
           changeType="neutral"
-          subtext={`Semester ${student.currentSemester} enrolled`}
+          subtext={user?.isGuest ? 'Sample coursework' : `Semester ${student.currentSemester} enrolled`}
           icon={GraduationCap}
           accentColor="cyan"
         />
         <StatCard
           title="Tracked Skills"
           value={activeSkillsCount.toString()}
-          change={`Avg Level: ${student.skillScore}%`}
+          change={student.skillScore ? `Avg Level: ${student.skillScore}%` : 'Competency status'}
           changeType="positive"
           subtext="Verified technical competencies"
           icon={Sparkles}
@@ -243,57 +317,75 @@ export const ProfilePage: React.FC = () => {
         {/* Left Column: Personal Bio & Contact Info */}
         <div className="lg:col-span-1 space-y-6">
           <div className="rounded-2xl bg-[#0D111A] border border-[#1C2538] p-6 shadow-xl space-y-4">
-            <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
-              Contact &amp; Social Links
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                Contact &amp; Social Links
+              </h3>
+              <button
+                onClick={handleStartEdit}
+                className="text-[11px] font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer"
+              >
+                Edit
+              </button>
+            </div>
 
             <div className="space-y-3 text-xs">
               <div className="flex items-center gap-3 text-slate-300">
                 <Mail className="w-4 h-4 text-slate-400 flex-shrink-0" />
                 <span className="truncate">{student.email}</span>
               </div>
-              {student.phone && (
-                <div className="flex items-center gap-3 text-slate-300">
-                  <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
+              <div className="flex items-center gap-3 text-slate-300">
+                <Phone className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                {student.phone ? (
                   <span>{student.phone}</span>
-                </div>
-              )}
-              {student.githubUrl && (
-                <div className="flex items-center gap-3 text-slate-300">
-                  <Github className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                ) : (
+                  <span className="text-slate-500 italic">Phone not provided</span>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-slate-300">
+                <Github className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                {student.githubUrl ? (
                   <a
-                    href={student.githubUrl}
+                    href={student.githubUrl.startsWith('http') ? student.githubUrl : `https://${student.githubUrl}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-indigo-400 hover:underline truncate"
                   >
                     {student.githubUrl.replace('https://', '')}
                   </a>
-                </div>
-              )}
-              {student.linkedinUrl && (
-                <div className="flex items-center gap-3 text-slate-300">
-                  <Linkedin className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                ) : (
+                  <span className="text-slate-500 italic">GitHub not linked</span>
+                )}
+              </div>
+              <div className="flex items-center gap-3 text-slate-300">
+                <Linkedin className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                {student.linkedinUrl ? (
                   <a
-                    href={student.linkedinUrl}
+                    href={student.linkedinUrl.startsWith('http') ? student.linkedinUrl : `https://${student.linkedinUrl}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-indigo-400 hover:underline truncate"
                   >
                     {student.linkedinUrl.replace('https://', '')}
                   </a>
-                </div>
-              )}
+                ) : (
+                  <span className="text-slate-500 italic">LinkedIn not linked</span>
+                )}
+              </div>
             </div>
 
-            {student.bio && (
-              <div className="pt-3 border-t border-[#192233]">
-                <span className="text-[10px] font-mono uppercase text-slate-400 block mb-1">
-                  Student Bio / Summary
-                </span>
+            <div className="pt-3 border-t border-[#192233]">
+              <span className="text-[10px] font-mono uppercase text-slate-400 block mb-1">
+                Student Bio / Summary
+              </span>
+              {student.bio ? (
                 <p className="text-xs text-slate-300 leading-relaxed">{student.bio}</p>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs text-slate-500 italic leading-relaxed">
+                  No biography entered yet. Click "Edit Profile Details" to introduce yourself and describe your engineering interests.
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="rounded-2xl bg-[#0D111A] border border-[#1C2538] p-6 shadow-xl space-y-3">
@@ -341,12 +433,12 @@ export const ProfilePage: React.FC = () => {
 
             <div className="mt-5 pt-4 border-t border-[#1A2234] flex items-center justify-between">
               <span className="text-xs text-slate-400">Want to add or modify semester courses?</span>
-              <a
-                href="/dashboard/academic"
+              <Link
+                to="/dashboard/academic"
                 className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1"
               >
                 <span>Manage Academic Subjects →</span>
-              </a>
+              </Link>
             </div>
           </div>
 
@@ -355,12 +447,12 @@ export const ProfilePage: React.FC = () => {
               <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
                 Career Direction &amp; Targets
               </h3>
-              <a
-                href="/dashboard/career"
+              <Link
+                to="/dashboard/career"
                 className="text-xs font-semibold text-indigo-400 hover:text-indigo-300"
               >
                 View Career Path Engine →
-              </a>
+              </Link>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
@@ -386,6 +478,48 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Own Skill Up in Profile */}
+          {(student.ownSkillUp || []).length > 0 && (
+            <div className="rounded-2xl bg-[#0D111A] border border-emerald-500/25 p-6 shadow-xl space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider font-mono">
+                    Own Skill Up — Independent Tracks
+                  </h3>
+                  <p className="text-xs text-slate-400">Self-driven learning goals outside university syllabus</p>
+                </div>
+                <Link
+                  to="/dashboard/skills"
+                  className="text-xs font-semibold text-emerald-400 hover:text-emerald-300"
+                >
+                  Manage Skills →
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                {student.ownSkillUp?.map((goal) => (
+                  <div
+                    key={goal.id}
+                    className="p-3 rounded-xl bg-[#111624] border border-[#1D273C] space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white">{goal.skill}</span>
+                      <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        {goal.targetLevel}
+                      </span>
+                    </div>
+                    <div className="text-[11px] font-mono text-slate-400">
+                      Level: {goal.currentLevel} → <span className="text-emerald-300">{goal.targetLevel}</span>
+                    </div>
+                    {goal.reason && (
+                      <p className="text-[10px] text-slate-400 italic">&ldquo;{goal.reason}&rdquo;</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -17,6 +17,7 @@ import {
   X,
   Save,
   Search,
+  Target,
 } from 'lucide-react';
 import { PageHeader, StatCard, ProgressBar } from '../../components/common/UIComponents';
 import { useAuth } from '../../context/AuthContext';
@@ -28,6 +29,7 @@ export const SkillsPage: React.FC = () => {
   const student = user?.studentProfile || mockStudent;
 
   const skills = student.skills || [];
+  const ownSkillUp = student.ownSkillUp || [];
 
   const [selectedRole, setSelectedRole] = useState<string>(student.targetCareer);
   const [categoryFilter, setCategoryFilter] = useState<string>('All');
@@ -132,7 +134,7 @@ export const SkillsPage: React.FC = () => {
       <PageHeader
         title="Skill Gap Analyzer & Competency Matrix"
         subtitle={`Dynamic evaluation of technical skills against industry benchmarks for ${student.targetCareer}.`}
-        badge="Adaptive Calibration"
+        badge={user?.isGuest ? 'Guest Exploration' : 'Adaptive Calibration'}
         actions={
           <div className="flex flex-wrap items-center gap-2.5">
             <button
@@ -167,6 +169,16 @@ export const SkillsPage: React.FC = () => {
         }
       />
 
+      {/* First-Time Student Guidance Bar */}
+      <div className="p-3.5 rounded-xl bg-[#0F1424] border border-[#1B253D] flex items-center gap-3 text-xs text-slate-300">
+        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 flex-shrink-0">
+          <Sparkles className="w-4 h-4" />
+        </div>
+        <p className="leading-relaxed">
+          <strong className="text-white font-medium">Skills Hub Guidance:</strong> Track your current proficiency against industry hiring standards for <strong>{selectedRole}</strong>. Gaps between your current score and required benchmarks highlight priority technical topics to practice in your hands-on projects.
+        </p>
+      </div>
+
       {/* Visual Diagnostic Banner */}
       <div className="p-6 rounded-2xl bg-gradient-to-r from-[#0F1424] via-[#0E1526] to-[#0A0D15] border border-[#1E273D] shadow-xl">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-[#1A2336] mb-5 gap-2">
@@ -179,7 +191,7 @@ export const SkillsPage: React.FC = () => {
             </h2>
           </div>
           <span className="text-xs font-mono text-slate-400">
-            Student Roll No: <strong className="text-indigo-300">{student.rollNumber}</strong>
+            {user?.isGuest ? 'Guest Exploration Profile' : <>Student Roll No: <strong className="text-indigo-300">{student.rollNumber}</strong></>}
           </span>
         </div>
 
@@ -387,6 +399,67 @@ export const SkillsPage: React.FC = () => {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Own Skill Up (Independent Learning Goals) */}
+      <div className="rounded-2xl bg-gradient-to-b from-[#0F1424] to-[#0A0E18] border border-indigo-500/30 p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <Target className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base font-bold text-white tracking-tight">
+                  Own Skill Up — Independent Learning Tracks
+                </h2>
+                <span className="text-[10px] font-mono bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
+                  NEXORA Core
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Self-driven competencies outside your standard college syllabus to stand out in hiring.
+              </p>
+            </div>
+          </div>
+          <span className="text-xs font-mono text-slate-400 self-start sm:self-auto">
+            {ownSkillUp.length} Active Goals
+          </span>
+        </div>
+
+        {ownSkillUp.length === 0 ? (
+          <div className="p-6 rounded-xl bg-[#090D15] border border-[#1E273A] text-center">
+            <p className="text-xs text-slate-400">
+              No independent skill goals configured yet. You can set them in your profile settings or during onboarding.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {ownSkillUp.map((goal) => (
+              <div
+                key={goal.id}
+                className="p-3.5 rounded-xl bg-[#090E18] border border-[#1C263D] hover:border-emerald-500/40 transition-all space-y-2"
+              >
+                <div className="flex items-start justify-between">
+                  <span className="text-sm font-bold text-white block">{goal.skill}</span>
+                  <span className="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 font-semibold">
+                    Target: {goal.targetLevel}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                  <span>Current: {goal.currentLevel}</span>
+                  <span className="text-indigo-400">→</span>
+                  <span className="text-emerald-300 font-semibold">{goal.targetLevel}</span>
+                </div>
+                {goal.reason && (
+                  <p className="text-[11px] text-slate-400 italic pt-1 border-t border-[#151E30]">
+                    &ldquo;{goal.reason}&rdquo;
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Add Skill Modal */}

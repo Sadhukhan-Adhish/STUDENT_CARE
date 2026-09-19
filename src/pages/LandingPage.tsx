@@ -22,14 +22,21 @@ import {
 import { useAuth } from '../context/AuthContext';
 
 export const LandingPage: React.FC = () => {
-  const { user, demoLogin } = useAuth();
+  const { user, enterGuestMode } = useAuth();
   const navigate = useNavigate();
 
   const handleLaunchDashboard = async () => {
     if (!user) {
-      await demoLogin();
+      await enterGuestMode();
     }
     navigate('/dashboard');
+  };
+
+  const handleNavigateModule = async (route: string) => {
+    if (!user) {
+      await enterGuestMode();
+    }
+    navigate(route);
   };
 
   return (
@@ -591,7 +598,7 @@ export const LandingPage: React.FC = () => {
                 <div
                   key={feature.id}
                   id={feature.id}
-                  onClick={() => navigate(feature.route)}
+                  onClick={() => handleNavigateModule(feature.route)}
                   className="p-6 rounded-xl bg-[#0B0F19] border border-[#1A2234] hover:border-indigo-500/40 hover:bg-[#0E1422] transition-all cursor-pointer group flex flex-col justify-between"
                 >
                   <div>

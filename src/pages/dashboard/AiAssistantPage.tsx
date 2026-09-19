@@ -22,21 +22,6 @@ interface Message {
   suggestions?: string[];
 }
 
-const initialMessages: Message[] = [
-  {
-    id: 'msg-1',
-    sender: 'assistant',
-    content: `Hello Alex! I am your NEXORA Student Intelligence Mentor. I have full context on your academic standing (CGPA 8.74, Sem 6), your verified skills (Python 82%, Algorithms A+), and your target role as a Machine Learning Engineer. How can I help you accelerate your trajectory today?`,
-    timestamp: '10:00 AM',
-    suggestions: [
-      'How can I improve my Python skills?',
-      'What skills am I missing for an ML Engineer role?',
-      'Suggest a project based on my current skills.',
-      'Create a 30-day learning plan.',
-    ],
-  },
-];
-
 const mockResponses: Record<string, string> = {
   'How can I improve my Python skills?': `Based on your skill matrix, your Python proficiency is currently verified at **82%**, which is already strong. However, tier-1 ML Engineer positions expect **90%+** in production Python.
 
@@ -83,11 +68,28 @@ I can add this to your Project Lab with pre-configured milestone rubrics if you'
   * Re-upload resume to NEXORA Resume Intelligence to verify score jump from 84 to 90+.`,
 };
 
+const getInitialMessages = (studentName: string, cgpa?: number, currentSemester?: number, targetCareer?: string): Message[] => [
+  {
+    id: 'msg-1',
+    sender: 'assistant',
+    content: `Hello ${studentName}! I am your NEXORA Student Intelligence Mentor. I have full context on your academic standing (${cgpa ? `CGPA ${cgpa.toFixed(2)}` : 'Academic profile'}, Semester ${currentSemester || 1}) and your target role as ${targetCareer || 'Engineer'}. How can I help you accelerate your trajectory today?`,
+    timestamp: '10:00 AM',
+    suggestions: [
+      'How can I improve my technical skills?',
+      `What skills am I missing for this role?`,
+      'Suggest a project based on my current skills.',
+      'Create a 30-day learning plan.',
+    ],
+  },
+];
+
 export const AiAssistantPage: React.FC = () => {
   const { user } = useAuth();
   const student = user?.studentProfile || mockStudent;
 
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>(() =>
+    getInitialMessages(student.name, student.cgpa, student.currentSemester, student.targetCareer)
+  );
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -121,7 +123,7 @@ export const AiAssistantPage: React.FC = () => {
     // Find best mock response or default
     let reply = mockResponses[text];
     if (!reply) {
-      reply = `Thank you for asking! Analyzing your request against your academic profile (CGPA ${student.cgpa}) and target career (${student.targetCareer}):
+      reply = `Thank you for asking! Analyzing your request against your academic profile (${student.cgpa ? `CGPA ${student.cgpa}` : 'Active student'}) and target career (${student.targetCareer}):
 
 To achieve optimal results on this, focus on connecting your strong algorithmic foundation with production engineering standards. Ensure all solutions include clean documentation, unit tests, and performance benchmarks.
 
@@ -140,7 +142,7 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
   };
 
   const handleClear = () => {
-    setMessages(initialMessages);
+    setMessages(getInitialMessages(student.name, student.cgpa, student.currentSemester, student.targetCareer));
   };
 
   return (
