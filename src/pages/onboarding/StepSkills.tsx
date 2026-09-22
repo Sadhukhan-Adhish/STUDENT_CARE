@@ -264,7 +264,7 @@ export const StepSkills: React.FC<StepSkillsProps> = ({
                 Part 2: Own Skill Up ({(data.ownSkillUp || []).length})
               </h3>
               <span className="text-[10px] font-mono bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 px-2 py-0.5 rounded-full font-semibold">
-                NEXORA Feature
+                UNNEXA Feature
               </span>
             </div>
             <p className="text-xs text-slate-300 mt-0.5">

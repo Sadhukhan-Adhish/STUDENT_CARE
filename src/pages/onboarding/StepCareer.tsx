@@ -57,7 +57,7 @@ export const StepCareer: React.FC<StepCareerProps> = ({
           Career Direction &amp; Goals
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          What career path are you currently preparing for? NEXORA will tailor recommendations and roadmap milestones to this role.
+          What career path are you currently preparing for? UNNEXA will tailor recommendations and roadmap milestones to this role.
         </p>
       </div>
 
@@ -113,7 +113,7 @@ export const StepCareer: React.FC<StepCareerProps> = ({
             autoFocus
           />
           <p className="text-[11px] text-slate-400">
-            NEXORA supports engineering, science, business, design, and competitive exam tracks.
+            UNNEXA supports engineering, science, business, design, and competitive exam tracks.
           </p>
         </div>
       )}

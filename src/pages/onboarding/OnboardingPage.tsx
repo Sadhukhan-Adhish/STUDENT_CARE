@@ -25,7 +25,7 @@ const ONBOARDING_STEPS = [
   { id: 7, title: 'Career', desc: 'Target Goal' },
 ];
 
-const DRAFT_KEY = 'nexora_onboarding_draft';
+const DRAFT_KEY = 'unnexa_onboarding_draft';
 
 export const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -228,7 +228,7 @@ export const OnboardingPage: React.FC = () => {
             </div>
             <div>
               <span className="font-heading font-extrabold text-sm tracking-wider text-white">
-                NEXORA
+                UNNEXA
               </span>
               <span className="block text-[10px] font-mono text-indigo-400">
                 STUDENT ONBOARDING
@@ -403,7 +403,7 @@ export const OnboardingPage: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-[#121826] py-4 text-center text-xs text-slate-500 font-mono">
-        NEXORA • Verified University Student Intelligence Architecture
+        UNNEXA • Verified University Student Intelligence Architecture
       </footer>
     </div>
   );

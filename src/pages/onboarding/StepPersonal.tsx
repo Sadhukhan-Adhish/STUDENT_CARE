@@ -60,7 +60,7 @@ export const StepPersonal: React.FC<StepPersonalProps> = ({ data, onChange, onNe
             type="text"
             value={data.fullName}
             onChange={(e) => onChange({ fullName: e.target.value })}
-            placeholder="e.g. Adhish Sharma"
+            placeholder="e.g. Alex Johnson"
             className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#090D15] border border-[#1E273A] text-slate-100 placeholder-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
             required
           />
@@ -80,7 +80,7 @@ export const StepPersonal: React.FC<StepPersonalProps> = ({ data, onChange, onNe
             type="email"
             value={data.email}
             onChange={(e) => onChange({ email: e.target.value })}
-            placeholder="e.g. adhish@university.edu"
+            placeholder="e.g. alex.johnson@university.edu"
             className="w-full pl-10 pr-3.5 py-2.5 rounded-xl bg-[#090D15] border border-[#1E273A] text-slate-100 placeholder-slate-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500 transition-all"
             required
           />

@@ -46,28 +46,28 @@ export const ForgotPasswordPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#08090D] text-slate-100 flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-12 relative overflow-hidden font-sans">
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[350px] bg-indigo-600/10 blur-[120px] pointer-events-none rounded-full" />
+    <div className="min-h-screen bg-[#0B0F14] text-[#F3F0E8] flex flex-col justify-center items-center px-4 sm:px-6 lg:px-8 py-12 relative overflow-hidden font-sans">
+      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[350px] bg-[#D89B5B]/8 blur-[120px] pointer-events-none rounded-full" />
 
       {/* Brand Header */}
       <div className="text-center mb-8 relative z-10">
         <Link to="/" className="inline-flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-600/30 border border-indigo-400/40">
-            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <div className="w-10 h-10 rounded-xl bg-[#D89B5B] flex items-center justify-center shadow-lg shadow-[#D89B5B]/20 border border-[#D89B5B]/40">
+            <svg className="w-5 h-5 text-[#0B0F14]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polygon points="12 2 2 7 12 12 22 7 12 2" />
               <polyline points="2 17 12 22 22 17" />
               <polyline points="2 12 12 17 22 12" />
             </svg>
           </div>
-          <span className="font-extrabold text-2xl tracking-tight text-white font-heading">NEXORA</span>
+          <span className="font-extrabold text-2xl tracking-tight text-[#F3F0E8] font-heading">UNNEXA</span>
         </Link>
-        <h1 className="text-xl sm:text-2xl font-bold text-white mt-4">Reset Student Password</h1>
-        <p className="text-xs sm:text-sm text-slate-400 mt-1">
+        <h1 className="text-xl sm:text-2xl font-bold text-[#F3F0E8] mt-4">Reset Student Password</h1>
+        <p className="text-xs sm:text-sm text-[#9AA5B1] mt-1">
           Recover student portal access using your University Roll Number or registered email
         </p>
       </div>
 
-      <div className="w-full max-w-md bg-[#0D121C] border border-[#1E2638] rounded-2xl p-6 sm:p-8 shadow-2xl relative z-10">
+      <div className="w-full max-w-md bg-[#151D26] border border-[#202C3B] rounded-2xl p-6 sm:p-8 shadow-2xl relative z-10">
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
             {error}
@@ -220,9 +220,9 @@ export const ForgotPasswordPage: React.FC = () => {
         )}
       </div>
 
-      <div className="mt-8 flex items-center gap-2 text-xs text-slate-400">
-        <Shield className="w-3.5 h-3.5 text-slate-400" />
-        <span>NEXORA Academic Authentication Protocol</span>
+      <div className="mt-8 flex items-center gap-2 text-xs text-[#9AA5B1]">
+        <Shield className="w-3.5 h-3.5 text-[#67C5B8]" />
+        <span>UNNEXA Academic Authentication Protocol</span>
       </div>
     </div>
   );

@@ -29,7 +29,7 @@ export const StepComplete: React.FC<StepCompleteProps> = ({ data, onEnterDashboa
       </div>
 
       <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight font-heading mb-3">
-        Your NEXORA profile is ready
+        Your UNNEXA profile is ready
       </h1>
 
       <p className="text-sm text-slate-300 leading-relaxed max-w-md mx-auto mb-6">

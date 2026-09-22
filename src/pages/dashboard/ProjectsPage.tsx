@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FolderGit2,
   ExternalLink,
@@ -13,19 +14,28 @@ import {
   Edit2,
   Trash2,
   X,
-  Save,
   Search,
+  Code2,
+  Lightbulb,
+  Link as LinkIcon,
+  Tag,
+  AlertCircle,
+  TrendingUp,
 } from 'lucide-react';
 import { PageHeader, StatCard, ProgressBar } from '../../components/common/UIComponents';
 import { useAuth } from '../../context/AuthContext';
-import { mockStudent, ProjectItem } from '../../data/mockData';
+import { mockStudent, ProjectItem, ProjectStatus, SkillItem } from '../../data/mockData';
 
 export const ProjectsPage: React.FC = () => {
   const { user, addProject, updateProject, deleteProject } = useAuth();
+  const navigate = useNavigate();
   const student = user?.studentProfile || mockStudent;
-  const projects = student.projects || [];
 
-  const [filterTab, setFilterTab] = useState<'All' | 'Recommended' | 'In Progress' | 'Completed'>('All');
+  const projects: ProjectItem[] = student.projects || [];
+  const currentSkills: SkillItem[] = student.skills || [];
+
+  // Filter tabs
+  const [filterTab, setFilterTab] = useState<'All' | ProjectStatus>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Modal states
@@ -34,531 +44,717 @@ export const ProjectsPage: React.FC = () => {
   const [selectedProject, setSelectedProject] = useState<ProjectItem | null>(null);
 
   // Form states
-  const [formTitle, setFormTitle] = useState('');
-  const [formTagline, setFormTagline] = useState('');
+  const [formName, setFormName] = useState('');
   const [formDescription, setFormDescription] = useState('');
-  const [formCategory, setFormCategory] = useState<'Full Stack' | 'AI / ML' | 'Distributed Systems' | 'DevOps & Cloud'>('Full Stack');
-  const [formDifficulty, setFormDifficulty] = useState<'Beginner' | 'Intermediate' | 'Advanced'>('Intermediate');
-  const [formStatus, setFormStatus] = useState<'In Progress' | 'Completed' | 'Recommended'>('In Progress');
-  const [formProgress, setFormProgress] = useState<number>(30);
-  const [formTech, setFormTech] = useState('React, TypeScript, Node.js');
-  const [formGap, setFormGap] = useState('Builds production portfolio credentials');
-  const [formGithub, setFormGithub] = useState('');
-  const [formDemo, setFormDemo] = useState('');
+  const [formStatus, setFormStatus] = useState<ProjectStatus>('In Progress');
+  const [formTechInput, setFormTechInput] = useState('');
+  const [formSelectedSkills, setFormSelectedSkills] = useState<string[]>([]);
+  const [formCustomSkillInput, setFormCustomSkillInput] = useState('');
+  const [formGithubUrl, setFormGithubUrl] = useState('');
+  const [formDemoUrl, setFormDemoUrl] = useState('');
 
+  // Lock body scroll when Add or Edit project modal is open
+  useEffect(() => {
+    if (isAddModalOpen || isEditModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isAddModalOpen, isEditModalOpen]);
+
+  // Filter projects
   const filteredProjects = projects.filter((p) => {
+    const projectTitle = p.name || p.title || '';
     const matchesTab = filterTab === 'All' || p.status === filterTab;
     const matchesSearch =
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.technologies.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()));
+      projectTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (p.description && p.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (p.technologies && p.technologies.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))) ||
+      (p.skillsUsed && p.skillsUsed.some((s) => s.toLowerCase().includes(searchQuery.toLowerCase())));
     return matchesTab && matchesSearch;
   });
 
+  // Metrics
   const completedCount = projects.filter((p) => p.status === 'Completed').length;
   const inProgressCount = projects.filter((p) => p.status === 'In Progress').length;
-  const recommendedCount = projects.filter((p) => p.status === 'Recommended').length;
+  const ideaCount = projects.filter((p) => p.status === 'Idea' || p.status === 'Planned').length;
 
-  const handleStartProject = (projectId: string) => {
-    updateProject(projectId, { status: 'In Progress', progress: 15 });
+  // Status helper colors
+  const getStatusBadge = (status: ProjectStatus) => {
+    switch (status) {
+      case 'Completed':
+        return 'bg-emerald-500/12 text-emerald-400 border-emerald-500/25';
+      case 'In Progress':
+        return 'bg-[#D89B5B]/12 text-[#E8B47E] border-[#D89B5B]/30';
+      case 'Idea':
+        return 'bg-[#67C5B8]/12 text-[#7CD4C8] border-[#67C5B8]/30';
+      case 'Planned':
+        return 'bg-[#1E2838] text-[#9AA5B1] border-[#2B394E]';
+      case 'Recommended':
+      default:
+        return 'bg-[#D89B5B]/12 text-[#E8B47E] border-[#D89B5B]/25';
+    }
   };
 
-  const handleCompleteProject = (projectId: string) => {
-    updateProject(projectId, { status: 'Completed', progress: 100 });
-  };
-
+  // Open Add Modal
   const openAddModal = () => {
-    setFormTitle('');
-    setFormTagline('');
+    setFormName('');
     setFormDescription('');
-    setFormCategory('Full Stack');
-    setFormDifficulty('Intermediate');
     setFormStatus('In Progress');
-    setFormProgress(25);
-    setFormTech('React, TypeScript, Tailwind');
-    setFormGap(`Resolves ${student.targetCareer} portfolio requirement`);
-    setFormGithub(user?.isGuest ? 'https://github.com/sample-student' : '');
-    setFormDemo('');
+    setFormTechInput('');
+    setFormSelectedSkills([]);
+    setFormCustomSkillInput('');
+    setFormGithubUrl(user?.isGuest ? 'https://github.com/sample-student/new-project' : '');
+    setFormDemoUrl('');
     setIsAddModalOpen(true);
   };
 
+  // Open Edit Modal
   const openEditModal = (project: ProjectItem) => {
     setSelectedProject(project);
-    setFormTitle(project.title);
-    setFormTagline(project.tagline || '');
-    setFormDescription(project.description);
-    setFormCategory(project.category as any);
-    setFormDifficulty(project.difficulty as any);
-    setFormStatus(project.status as any);
-    setFormProgress(project.progress ?? 0);
-    setFormTech(project.technologies.join(', '));
-    setFormGap(project.skillGapAddressed || '');
-    setFormGithub(project.githubUrl || '');
-    setFormDemo(project.demoUrl || '');
+    setFormName(project.name || project.title || '');
+    setFormDescription(project.description || '');
+    setFormStatus(project.status || 'In Progress');
+    setFormTechInput((project.technologies || project.techStack || []).join(', '));
+    setFormSelectedSkills(project.skillsUsed || project.skillsCovered || []);
+    setFormCustomSkillInput('');
+    setFormGithubUrl(project.githubUrl || project.githubLink || '');
+    setFormDemoUrl(project.demoUrl || project.projectLink || '');
     setIsEditModalOpen(true);
   };
 
+  // Toggle skill selection in form
+  const toggleSkillSelection = (skillName: string) => {
+    if (formSelectedSkills.includes(skillName)) {
+      setFormSelectedSkills(formSelectedSkills.filter((s) => s !== skillName));
+    } else {
+      setFormSelectedSkills([...formSelectedSkills, skillName]);
+    }
+  };
+
+  // Add custom skill to skills used
+  const handleAddCustomSkill = () => {
+    const trimmed = formCustomSkillInput.trim();
+    if (trimmed && !formSelectedSkills.includes(trimmed)) {
+      setFormSelectedSkills([...formSelectedSkills, trimmed]);
+      setFormCustomSkillInput('');
+    }
+  };
+
+  // Save Add
   const handleSaveAdd = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formTitle.trim()) return;
+    if (!formName.trim()) return;
 
-    const techArray = formTech
+    const techArray = formTechInput
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
 
     addProject({
-      title: formTitle.trim(),
-      tagline: formTagline.trim(),
+      title: formName.trim(),
+      name: formName.trim(),
       description: formDescription.trim(),
-      category: formCategory,
-      difficulty: formDifficulty,
       status: formStatus,
-      progress: Number(formProgress),
-      technologies: techArray.length > 0 ? techArray : ['TypeScript', 'React'],
-      skillsCovered: techArray,
-      skillGapAddressed: formGap.trim() || 'General software engineering validation',
-      estimatedHours: 25,
-      githubUrl: formGithub.trim() || undefined,
-      demoUrl: formDemo.trim() || undefined,
+      technologies: techArray.length > 0 ? techArray : formSelectedSkills,
+      techStack: techArray.length > 0 ? techArray : formSelectedSkills,
+      skillsUsed: formSelectedSkills,
+      skillsCovered: formSelectedSkills,
+      githubUrl: formGithubUrl.trim() || undefined,
+      githubLink: formGithubUrl.trim() || undefined,
+      demoUrl: formDemoUrl.trim() || undefined,
+      projectLink: formDemoUrl.trim() || undefined,
+      progress: formStatus === 'Completed' ? 100 : formStatus === 'In Progress' ? 50 : 0,
     });
 
     setIsAddModalOpen(false);
   };
 
+  // Save Edit
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedProject) return;
+    if (!selectedProject || !formName.trim()) return;
 
-    const techArray = formTech
+    const techArray = formTechInput
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean);
 
     updateProject(selectedProject.id, {
-      title: formTitle.trim(),
-      tagline: formTagline.trim(),
+      title: formName.trim(),
+      name: formName.trim(),
       description: formDescription.trim(),
-      category: formCategory,
-      difficulty: formDifficulty,
       status: formStatus,
-      progress: Number(formProgress),
-      technologies: techArray,
-      skillsCovered: techArray,
-      skillGapAddressed: formGap.trim(),
-      githubUrl: formGithub.trim() || undefined,
-      demoUrl: formDemo.trim() || undefined,
+      technologies: techArray.length > 0 ? techArray : formSelectedSkills,
+      techStack: techArray.length > 0 ? techArray : formSelectedSkills,
+      skillsUsed: formSelectedSkills,
+      skillsCovered: formSelectedSkills,
+      githubUrl: formGithubUrl.trim() || undefined,
+      githubLink: formGithubUrl.trim() || undefined,
+      demoUrl: formDemoUrl.trim() || undefined,
+      projectLink: formDemoUrl.trim() || undefined,
+      progress: formStatus === 'Completed' ? 100 : selectedProject.progress ?? (formStatus === 'In Progress' ? 50 : 0),
     });
 
     setIsEditModalOpen(false);
   };
 
-  const handleDelete = (id: string, title: string) => {
-    if (window.confirm(`Delete project "${title}" from your portfolio?`)) {
+  // Quick Status change
+  const handleQuickStatusChange = (projectId: string, newStatus: ProjectStatus) => {
+    updateProject(projectId, {
+      status: newStatus,
+      progress: newStatus === 'Completed' ? 100 : newStatus === 'In Progress' ? 50 : 0,
+    });
+  };
+
+  // Delete project
+  const handleDelete = (id: string, name: string) => {
+    if (window.confirm(`Delete project "${name}" from your portfolio?`)) {
       deleteProject(id);
     }
   };
 
   return (
-    <div className="space-y-6 pb-12 font-sans">
+    <div className="space-y-8 pb-16 font-sans">
       <PageHeader
-        title="Project Lab &amp; Portfolios"
-        subtitle={`Proof-of-work assignments and completed implementations eliminating skill deficits for ${student.targetCareer}.`}
-        badge={user?.isGuest ? 'Guest Exploration' : `Roll No: ${student.rollNumber}`}
+        title="Project Showcase & Applied Experience"
+        subtitle="Tangible software projects demonstrating practical mastery of your technical skills."
+        badge={user?.isGuest ? 'Guest Showcase' : 'Verified Student Portfolio'}
         actions={
-          <button
-            onClick={openAddModal}
-            className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 shadow-md shadow-indigo-600/30 transition-all flex items-center gap-1.5 cursor-pointer"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Add Portfolio Project</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={openAddModal}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#0B0F14] bg-[#D89B5B] hover:bg-[#E4AB70] border border-[#E8B47E]/40 shadow-sm transition-all duration-150 flex items-center gap-1.5 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#0B0F14]" />
+              <span>Add Project</span>
+            </button>
+          </div>
         }
       />
 
-      {/* First-Time Student Guidance Bar */}
-      <div className="p-3.5 rounded-xl bg-[#0F1424] border border-[#1B253D] flex items-center gap-3 text-xs text-slate-300">
-        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 flex-shrink-0">
-          <FolderGit2 className="w-4 h-4" />
+      {/* Project ↔ Skill Connection Explanatory Banner */}
+      <div className="p-4 rounded-xl bg-[#151D26] border border-[#222E3C] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-lg bg-[#D89B5B]/15 text-[#D89B5B] flex-shrink-0 mt-0.5">
+            <Code2 className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-xs font-bold text-[#F3F0E8] uppercase tracking-wider">
+                Skill Application Bridge
+              </h3>
+              <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#D89B5B]/15 text-[#E8B47E] border border-[#D89B5B]/25">
+                UNNEXA Connected
+              </span>
+            </div>
+            <p className="text-xs text-[#9AA5B1] mt-1 leading-relaxed">
+              Every project links directly to your <strong>Current Skills</strong>. Linking skills shows hiring reviewers how and where you applied each competency in production code.
+            </p>
+          </div>
         </div>
-        <p className="leading-relaxed">
-          <strong className="text-white font-medium">Projects Guidance:</strong> Hands-on projects convert academic theory into verified proof-of-work. Start recommended capstones calibrated for {student.targetCareer} or log your own repository builds to address highlighted skill deficits.
-        </p>
+
+        <button
+          onClick={() => navigate('/dashboard/skills')}
+          className="self-start sm:self-center px-3 py-1.5 rounded-lg text-xs font-medium text-[#D89B5B] hover:text-[#F3F0E8] bg-[#D89B5B]/10 hover:bg-[#D89B5B]/20 border border-[#D89B5B]/30 flex items-center gap-1.5 cursor-pointer transition-all duration-150 whitespace-nowrap hover:-translate-y-0.5 active:translate-y-0"
+        >
+          <span>View Skills Matrix</span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
-      {/* Top 3 Metric Cards */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          title="In Progress Projects"
-          value={inProgressCount}
-          change="Active lab work"
-          changeType="positive"
-          subtext="Currently building"
+          title="Total Projects"
+          value={projects.length}
+          change={projects.length > 0 ? `${completedCount} Completed` : 'None logged yet'}
+          changeType={projects.length > 0 ? 'positive' : 'neutral'}
+          subtext="In your personal showcase"
           icon={FolderGit2}
-          accentColor="indigo"
+          accentColor="copper"
         />
         <StatCard
-          title="Completed Projects"
-          value={completedCount}
-          change="Verified on GitHub"
-          changeType="positive"
-          subtext="Proof of competence"
-          icon={CheckCircle2}
-          accentColor="emerald"
+          title="In Active Development"
+          value={inProgressCount}
+          change={inProgressCount > 0 ? 'Active builds' : 'Ready to start'}
+          changeType={inProgressCount > 0 ? 'positive' : 'neutral'}
+          subtext="Currently progressing"
+          icon={Clock}
+          accentColor="teal"
         />
         <StatCard
-          title="Recommended Next"
-          value={recommendedCount}
-          change="Gap targeted"
+          title="Project Ideas & Planned"
+          value={ideaCount}
+          change={ideaCount > 0 ? 'Upcoming pipeline' : 'Add ideas'}
           changeType="neutral"
-          subtext="Calibrated by AI"
-          icon={Sparkles}
-          accentColor="purple"
+          subtext="Future technical builds"
+          icon={Lightbulb}
+          accentColor="copper"
         />
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-1.5 bg-[#121826] p-1 rounded-lg border border-[#1D273C]">
-          {(['All', 'In Progress', 'Recommended', 'Completed'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setFilterTab(tab)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                filterTab === tab
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+      {/* Project Filter & List Container */}
+      <div className="rounded-2xl bg-[#151D26] border border-[#222E3C] p-6 shadow-xl space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[#1E2938]">
+          <div>
+            <span className="text-xs font-mono uppercase tracking-wider text-[#9AA5B1]">
+              Student Portfolio
+            </span>
+            <h2 className="text-lg font-bold text-[#F3F0E8] mt-0.5">
+              Project Showcase ({filteredProjects.length} Projects)
+            </h2>
+          </div>
 
-        <div className="relative min-w-[240px]">
-          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search projects or technologies..."
-            className="w-full bg-[#121826] border border-[#1D273C] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
-          />
-        </div>
-      </div>
-
-      {/* Projects Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {filteredProjects.map((project) => {
-          const isCompleted = project.status === 'Completed';
-          const isInProgress = project.status === 'In Progress';
-          const isRecommended = project.status === 'Recommended';
-
-          return (
-            <div
-              key={project.id}
-              className="rounded-2xl bg-[#0D111A] border border-[#1C2538] hover:border-indigo-500/40 p-6 shadow-xl transition-all flex flex-col justify-between group"
-            >
-              <div>
-                {/* Header tags */}
-                <div className="flex items-center justify-between gap-2 mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                      {project.category}
-                    </span>
-                    <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded ${
-                        project.difficulty === 'Advanced'
-                          ? 'bg-purple-500/10 text-purple-300 border border-purple-500/20'
-                          : 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/20'
-                      }`}
-                    >
-                      {project.difficulty}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-[10px] font-mono px-2 py-0.5 rounded font-semibold ${
-                        isCompleted
-                          ? 'bg-emerald-500/10 text-emerald-300 border border-emerald-500/20'
-                          : isInProgress
-                          ? 'bg-indigo-500/10 text-indigo-300 border border-indigo-500/20'
-                          : 'bg-amber-500/10 text-amber-300 border border-amber-500/20'
-                      }`}
-                    >
-                      {project.status}
-                    </span>
-
-                    <button
-                      onClick={() => openEditModal(project)}
-                      className="p-1 rounded text-slate-400 hover:text-indigo-300 transition-colors"
-                      title="Edit Project"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(project.id, project.title)}
-                      className="p-1 rounded text-slate-400 hover:text-rose-400 transition-colors"
-                      title="Delete Project"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-
-                <h3 className="text-lg font-bold text-white leading-snug">{project.title}</h3>
-                <p className="text-xs text-indigo-300/90 font-medium mt-1">{project.tagline}</p>
-                <p className="text-xs text-slate-400 mt-2.5 leading-relaxed">{project.description}</p>
-
-                {/* Skill Gap addressed callout */}
-                {project.skillGapAddressed && (
-                  <div className="mt-4 p-2.5 rounded-lg bg-[#121826] border border-[#1E293E] text-xs">
-                    <span className="text-[10px] font-mono uppercase text-indigo-400 font-semibold block mb-0.5">
-                      Skill Gap Addressed:
-                    </span>
-                    <span className="text-slate-300">{project.skillGapAddressed}</span>
-                  </div>
-                )}
-
-                {/* Tech stack */}
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {project.technologies.map((tech, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#141A29] text-slate-300 border border-[#20293D]"
-                    >
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 pt-4 border-t border-[#182132]">
-                {/* Progress bar */}
-                <div className="mb-4">
-                  <div className="flex justify-between text-xs font-mono text-slate-400 mb-1">
-                    <span>Implementation Progress</span>
-                    <span className="text-white font-bold">{project.progress}%</span>
-                  </div>
-                  <ProgressBar
-                    progress={project.progress}
-                    color={isCompleted ? 'emerald' : 'indigo'}
-                  />
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex items-center justify-between gap-3 text-xs">
-                  <div className="flex items-center gap-3">
-                    {project.githubUrl && (
-                      <a
-                        href={project.githubUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-slate-400 hover:text-white flex items-center gap-1 transition-colors"
-                      >
-                        <Github className="w-3.5 h-3.5" />
-                        <span>Source</span>
-                      </a>
-                    )}
-                    {project.demoUrl && (
-                      <a
-                        href={project.demoUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition-colors"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                        <span>Live Demo</span>
-                      </a>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {isRecommended && (
-                      <button
-                        onClick={() => handleStartProject(project.id)}
-                        className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-600/30 transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>Start Lab</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </button>
-                    )}
-                    {isInProgress && (
-                      <button
-                        onClick={() => handleCompleteProject(project.id)}
-                        className="py-1.5 px-3 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm shadow-emerald-600/30 transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Mark Complete</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 text-[#9AA5B1] absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search projects, tech, or skills..."
+                className="bg-[#0E151E] border border-[#202C3B] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#F3F0E8] placeholder-[#768393] focus:outline-none focus:border-[#D89B5B] transition-colors"
+              />
             </div>
-          );
-        })}
 
-        {filteredProjects.length === 0 && (
-          <div className="col-span-2 p-12 text-center text-slate-400 text-xs rounded-2xl bg-[#0D111A] border border-[#1C2538]">
-            No projects found matching the filter. Click "Add Portfolio Project" to create one.
+            <div className="flex items-center gap-1 bg-[#0E151E] p-1 rounded-lg border border-[#202C3B] overflow-x-auto">
+              {(['All', 'In Progress', 'Completed', 'Idea', 'Planned'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setFilterTab(tab)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-all duration-150 cursor-pointer whitespace-nowrap ${
+                    filterTab === tab
+                      ? 'bg-[#D89B5B] text-[#0B0F14] font-semibold shadow-sm'
+                      : 'text-[#9AA5B1] hover:text-[#F3F0E8]'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={openAddModal}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#0B0F14] bg-[#D89B5B] hover:bg-[#E4AB70] transition-all duration-150 flex items-center gap-1 cursor-pointer hover:-translate-y-0.5 active:translate-y-0 shadow-sm"
+            >
+              <Plus className="w-3.5 h-3.5 text-[#0B0F14]" />
+              <span>Add Project</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Empty State for registered student with no projects */}
+        {projects.length === 0 ? (
+          <div className="p-8 sm:p-12 text-center rounded-2xl bg-[#121922] border border-dashed border-[#222E3C] space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#D89B5B]/10 border border-[#D89B5B]/25 text-[#D89B5B] mx-auto flex items-center justify-center">
+              <FolderGit2 className="w-6 h-6" />
+            </div>
+            <div className="max-w-md mx-auto">
+              <h3 className="text-base font-bold text-[#F3F0E8]">No Projects in Your Portfolio Yet</h3>
+              <p className="text-xs text-[#9AA5B1] mt-2 leading-relaxed">
+                Projects demonstrate how you practically apply your technical skills in real applications. Add your semester capstones, personal experiments, or hackathon builds, and tag the skills you used to build a compelling developer profile.
+              </p>
+            </div>
+            <button
+              onClick={openAddModal}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-[#0B0F14] bg-[#D89B5B] hover:bg-[#E4AB70] border border-[#E8B47E]/40 shadow-sm transition-all duration-150 cursor-pointer hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <Plus className="w-4 h-4 text-[#0B0F14]" />
+              <span>Add Your First Project</span>
+            </button>
+          </div>
+        ) : filteredProjects.length === 0 ? (
+          <div className="p-8 text-center text-[#9AA5B1] text-xs rounded-xl bg-[#121922] border border-[#222E3C]">
+            No projects found matching &ldquo;{searchQuery || filterTab}&rdquo;. Try another filter or search term.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            {filteredProjects.map((project) => {
+              const title = project.name || project.title || 'Untitled Project';
+              const techList = project.technologies || project.techStack || [];
+              const skillsList = project.skillsUsed || project.skillsCovered || [];
+              const github = project.githubUrl || project.githubLink;
+              const demo = project.demoUrl || project.projectLink;
+
+              return (
+                <div
+                  key={project.id}
+                  className="p-5 rounded-xl bg-[#121922] border border-[#1E2A38] hover:border-[#D89B5B]/40 transition-all duration-150 hover:-translate-y-0.5 flex flex-col justify-between space-y-4 group shadow-sm hover:shadow-md"
+                >
+                  <div className="space-y-3">
+                    {/* Header: Title + Status + Quick status selector */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h3 className="text-base font-bold text-[#F3F0E8] group-hover:text-[#D89B5B] transition-colors duration-150">
+                          {title}
+                        </h3>
+                        {project.tagline && (
+                          <p className="text-xs text-[#9AA5B1] mt-0.5">{project.tagline}</p>
+                        )}
+                      </div>
+
+                      {/* Status Dropdown/Badge */}
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={project.status}
+                          onChange={(e) => handleQuickStatusChange(project.id, e.target.value as ProjectStatus)}
+                          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border focus:outline-none cursor-pointer bg-[#0E151E] ${getStatusBadge(
+                            project.status
+                          )}`}
+                        >
+                          <option value="Idea">Idea</option>
+                          <option value="Planned">Planned</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Completed">Completed</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    {project.description && (
+                      <p className="text-xs text-[#9AA5B1] leading-relaxed">
+                        {project.description}
+                      </p>
+                    )}
+
+                    {/* Technologies Used */}
+                    {techList.length > 0 && (
+                      <div>
+                        <span className="text-[10px] font-mono uppercase text-[#768393] block mb-1.5">
+                          Technologies Used:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {techList.map((t, idx) => (
+                            <span
+                              key={idx}
+                              className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#16202B] text-[#D89B5B] border border-[#D89B5B]/20"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Skills Used (Connected with Skills section) */}
+                    {skillsList.length > 0 && (
+                      <div className="p-3 rounded-lg bg-[#0E151E] border border-[#1E2A38] space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono uppercase text-[#D89B5B] font-semibold flex items-center gap-1">
+                            <LinkIcon className="w-3 h-3" />
+                            <span>Skills Applied in this Project:</span>
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {skillsList.map((skillName, idx) => {
+                            const isTracked = currentSkills.some(
+                              (s) => s.name.toLowerCase() === skillName.toLowerCase()
+                            );
+                            return (
+                              <span
+                                key={idx}
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-mono flex items-center gap-1 border ${
+                                  isTracked
+                                    ? 'bg-[#67C5B8]/12 text-[#7CD4C8] border-[#67C5B8]/30'
+                                    : 'bg-[#182330] text-[#9AA5B1] border-[#27384B]'
+                                }`}
+                                title={isTracked ? 'Matched in your Current Skills' : 'Skill specified for this project'}
+                              >
+                                {isTracked && <span className="w-1.5 h-1.5 rounded-full bg-[#67C5B8]" />}
+                                <span>{skillName}</span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Card Footer: Links + Edit/Delete Actions */}
+                  <div className="pt-3 border-t border-[#1E2938] flex flex-wrap items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-3">
+                      {github && (
+                        <a
+                          href={github}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[#9AA5B1] hover:text-[#F3F0E8] transition-colors"
+                        >
+                          <Github className="w-3.5 h-3.5" />
+                          <span className="text-[11px]">Repository</span>
+                        </a>
+                      )}
+                      {demo && (
+                        <a
+                          href={demo}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-[#67C5B8] hover:text-[#7CD4C8] transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span className="text-[11px]">Live Demo</span>
+                        </a>
+                      )}
+                      {!github && !demo && (
+                        <span className="text-[11px] text-[#768393] italic">No links attached</span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditModal(project)}
+                        className="p-1.5 rounded-lg text-[#9AA5B1] hover:text-[#D89B5B] hover:bg-[#D89B5B]/10 transition-colors cursor-pointer"
+                        title="Edit Project"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(project.id, title)}
+                        className="p-1.5 rounded-lg text-[#9AA5B1] hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        title="Delete Project"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
 
+      {/* ========================================================== */}
+      {/* MODALS: ADD / EDIT PROJECT */}
+      {/* ========================================================== */}
+
       {/* Add Project Modal */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0E131E] border border-[#1E2638] rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-[#1A2234] mb-4">
-              <div className="flex items-center gap-2">
-                <FolderGit2 className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  Add Portfolio Project
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in overflow-hidden"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsAddModalOpen(false);
+          }}
+        >
+          <div
+            className="bg-[#151D26] border border-[#27384B] rounded-2xl w-full max-w-[calc(100vw-1.5rem)] sm:max-w-xl md:max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] shadow-2xl flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#1E2938] flex-shrink-0 bg-[#151D26]">
+              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                <div className="w-7 h-7 rounded-lg bg-[#D89B5B]/15 border border-[#D89B5B]/30 text-[#D89B5B] flex items-center justify-center flex-shrink-0">
+                  <FolderGit2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs sm:text-sm font-bold text-[#F3F0E8] uppercase tracking-wider truncate">
+                  Add New Project
                 </h3>
               </div>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="text-[#9AA5B1] hover:text-[#F3F0E8] p-1.5 rounded-lg hover:bg-[#1E2A38] transition-colors cursor-pointer flex-shrink-0"
+                aria-label="Close modal"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveAdd} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Project Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="e.g. Distributed Key-Value Store"
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Tagline / Subtitle</label>
-                <input
-                  type="text"
-                  value={formTagline}
-                  onChange={(e) => setFormTagline(e.target.value)}
-                  placeholder="e.g. Raft consensus protocol with persistent log engine"
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
+            {/* Scrollable Modal Content */}
+            <form onSubmit={handleSaveAdd} className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4 space-y-4 text-xs overscroll-contain">
                 <div>
-                  <label className="block text-slate-300 font-medium mb-1">Category</label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value as any)}
-                    className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="Full Stack">Full Stack</option>
-                    <option value="AI / ML">AI / ML</option>
-                    <option value="Distributed Systems">Distributed Systems</option>
-                    <option value="DevOps & Cloud">DevOps &amp; Cloud</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">Difficulty</label>
-                  <select
-                    value={formDifficulty}
-                    onChange={(e) => setFormDifficulty(e.target.value as any)}
-                    className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">Status</label>
-                  <select
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as any)}
-                    className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Recommended">Recommended</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Technologies (Comma separated)</label>
-                <input
-                  type="text"
-                  value={formTech}
-                  onChange={(e) => setFormTech(e.target.value)}
-                  placeholder="e.g. Go, gRPC, Docker, Raft"
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Skill Gap Target</label>
-                <input
-                  type="text"
-                  value={formGap}
-                  onChange={(e) => setFormGap(e.target.value)}
-                  placeholder="e.g. Distributed Consensus (+25%)"
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Project Description</label>
-                <textarea
-                  rows={3}
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  placeholder="Architecture details, benchmark throughput, and technical trade-offs..."
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">GitHub URL</label>
+                  <label className="block text-[#9AA5B1] font-medium mb-1.5">Project Name *</label>
                   <input
-                    type="url"
-                    value={formGithub}
-                    onChange={(e) => setFormGithub(e.target.value)}
-                    placeholder="https://github.com/..."
-                    className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                    type="text"
+                    required
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    placeholder="e.g. AI Study Assistant, Autonomous Delivery Drone, Smart Finance Dashboard"
+                    className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] placeholder-[#768393] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-medium mb-1">Live Demo URL</label>
-                  <input
-                    type="url"
-                    value={formDemo}
-                    onChange={(e) => setFormDemo(e.target.value)}
-                    placeholder="https://..."
-                    className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  <label className="block text-[#9AA5B1] font-medium mb-1.5">Description *</label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    placeholder="Explain what the project does, key features, architecture, and what challenges you solved..."
+                    className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] placeholder-[#768393] text-xs focus:outline-none focus:border-[#D89B5B] leading-relaxed transition-colors min-h-[72px]"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[#9AA5B1] font-medium mb-1.5">Status</label>
+                    <select
+                      value={formStatus}
+                      onChange={(e) => setFormStatus(e.target.value as ProjectStatus)}
+                      className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors cursor-pointer"
+                    >
+                      <option value="Idea">Idea</option>
+                      <option value="Planned">Planned</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#9AA5B1] font-medium mb-1.5">
+                      Technologies Used (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={formTechInput}
+                      onChange={(e) => setFormTechInput(e.target.value)}
+                      placeholder="React, TypeScript, FastAPI, PostgreSQL"
+                      className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] placeholder-[#768393] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Skills Used (Connected to student's current skills + custom skill) */}
+                <div className="p-3.5 rounded-xl bg-[#0E151E] border border-[#202C3B] space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <label className="block text-[#F3F0E8] font-semibold text-xs">
+                      Skills Used (Connected to Skills)
+                    </label>
+                    <span className="text-[10px] text-[#9AA5B1] font-mono px-2 py-0.5 rounded bg-[#151D26] border border-[#222E3C]">
+                      {formSelectedSkills.length} selected
+                    </span>
+                  </div>
+
+                  {/* Quick toggle chips from Current Skills */}
+                  {currentSkills.length > 0 && (
+                    <div>
+                      <span className="text-[10px] text-[#9AA5B1] block mb-2">
+                        Select from your Current Skills:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                        {currentSkills.map((skill) => {
+                          const isSelected = formSelectedSkills.includes(skill.name);
+                          return (
+                            <button
+                              type="button"
+                              key={skill.id}
+                              onClick={() => toggleSkillSelection(skill.name)}
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-mono border transition-all duration-150 cursor-pointer break-words text-left max-w-full ${
+                                isSelected
+                                  ? 'bg-[#D89B5B] border-[#D89B5B] text-[#0B0F14] font-semibold shadow-sm'
+                                  : 'bg-[#151D26] border-[#222E3C] text-[#9AA5B1] hover:text-[#F3F0E8] hover:border-[#2F3F52]'
+                              }`}
+                            >
+                              {isSelected ? '✓ ' : '+ '}
+                              {skill.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom Skill Input */}
+                  <div className="pt-2 border-t border-[#1C2634]">
+                    <span className="text-[10px] text-[#9AA5B1] block mb-1.5">
+                      Or add any custom skill manually:
+                    </span>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <input
+                        type="text"
+                        value={formCustomSkillInput}
+                        onChange={(e) => setFormCustomSkillInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomSkill();
+                          }
+                        }}
+                        placeholder="e.g. Prompt Engineering, WebSockets"
+                        className="w-full flex-1 bg-[#151D26] border border-[#222E3C] rounded-lg px-3 py-2 text-[#F3F0E8] placeholder-[#768393] text-xs focus:outline-none focus:border-[#D89B5B]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCustomSkill}
+                        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[#D89B5B] hover:bg-[#E4AB70] text-[#0B0F14] font-semibold text-xs cursor-pointer flex-shrink-0 transition-colors text-center"
+                      >
+                        Add Skill
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Selected Skills Chips */}
+                  {formSelectedSkills.length > 0 && (
+                    <div className="pt-2 border-t border-[#1C2634] flex flex-wrap gap-1.5">
+                      {formSelectedSkills.map((skill) => (
+                        <span
+                          key={skill}
+                          className="px-2.5 py-1 rounded-full text-[10px] font-mono bg-[#67C5B8]/12 text-[#7CD4C8] border border-[#67C5B8]/30 flex items-center gap-1.5 max-w-full"
+                        >
+                          <span className="truncate max-w-[200px]">{skill}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleSkillSelection(skill)}
+                            className="hover:text-white p-0.5 -mr-0.5 rounded cursor-pointer"
+                            aria-label={`Remove ${skill}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Links (Optional) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[#9AA5B1] font-medium mb-1.5">
+                      GitHub Link (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={formGithubUrl}
+                      onChange={(e) => setFormGithubUrl(e.target.value)}
+                      placeholder="https://github.com/username/project"
+                      className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] placeholder-[#768393] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#9AA5B1] font-medium mb-1.5">
+                      Live Demo Link (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={formDemoUrl}
+                      onChange={(e) => setFormDemoUrl(e.target.value)}
+                      placeholder="https://my-project.preview.app"
+                      className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] placeholder-[#768393] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1A2234]">
+              {/* Action Buttons Pinned at Bottom */}
+              <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-t border-[#1E2938] bg-[#121922] flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-[#141B2B] hover:bg-[#1A2338] border border-[#232F4A]"
+                  className="w-full sm:w-auto min-h-[40px] px-4 py-2.5 rounded-xl bg-[#1A2430] hover:bg-[#223040] text-[#9AA5B1] hover:text-[#F3F0E8] font-medium text-xs transition-colors cursor-pointer text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-white font-semibold bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/30 flex items-center gap-1.5"
+                  className="w-full sm:w-auto min-h-[40px] px-5 py-2.5 rounded-xl bg-[#D89B5B] hover:bg-[#E4AB70] text-[#0B0F14] font-semibold text-xs cursor-pointer shadow-sm transition-all duration-150 text-center hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Save Project</span>
+                  Save Project
                 </button>
               </div>
             </form>
@@ -568,149 +764,223 @@ export const ProjectsPage: React.FC = () => {
 
       {/* Edit Project Modal */}
       {isEditModalOpen && selectedProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-[#0E131E] border border-[#1E2638] rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-[#1A2234] mb-4">
-              <div className="flex items-center gap-2">
-                <Edit2 className="w-4 h-4 text-indigo-400" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                  Edit Project: {selectedProject.title}
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/80 backdrop-blur-sm animate-in fade-in overflow-hidden"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setIsEditModalOpen(false);
+          }}
+        >
+          <div
+            className="bg-[#151D26] border border-[#27384B] rounded-2xl w-full max-w-[calc(100vw-1.5rem)] sm:max-w-xl md:max-w-2xl max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)] shadow-2xl flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-[#1E2938] flex-shrink-0 bg-[#151D26]">
+              <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                <div className="w-7 h-7 rounded-lg bg-[#D89B5B]/15 border border-[#D89B5B]/30 text-[#D89B5B] flex items-center justify-center flex-shrink-0">
+                  <Edit2 className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs sm:text-sm font-bold text-[#F3F0E8] uppercase tracking-wider truncate">
+                  Edit Project
                 </h3>
               </div>
-              <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-white">
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-[#9AA5B1] hover:text-[#F3F0E8] p-1.5 rounded-lg hover:bg-[#1E2A38] transition-colors cursor-pointer flex-shrink-0"
+                aria-label="Close modal"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Project Title</label>
-                <input
-                  type="text"
-                  required
-                  value={formTitle}
-                  onChange={(e) => setFormTitle(e.target.value)}
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Tagline</label>
-                <input
-                  type="text"
-                  value={formTagline}
-                  onChange={(e) => setFormTagline(e.target.value)}
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
+            {/* Scrollable Modal Content */}
+            <form onSubmit={handleSaveEdit} className="flex-1 flex flex-col min-h-0">
+              <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-4 space-y-4 text-xs overscroll-contain">
                 <div>
-                  <label className="block text-slate-300 font-medium mb-1">Category</label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value as any)}
-                    className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="Full Stack">Full Stack</option>
-                    <option value="AI / ML">AI / ML</option>
-                    <option value="Distributed Systems">Distributed Systems</option>
-                    <option value="DevOps & Cloud">DevOps &amp; Cloud</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">Status</label>
-                  <select
-                    value={formStatus}
-                    onChange={(e) => setFormStatus(e.target.value as any)}
-                    className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                  >
-                    <option value="In Progress">In Progress</option>
-                    <option value="Completed">Completed</option>
-                    <option value="Recommended">Recommended</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">Progress ({formProgress}%)</label>
+                  <label className="block text-[#9AA5B1] font-medium mb-1.5">Project Name *</label>
                   <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={formProgress}
-                    onChange={(e) => setFormProgress(Number(e.target.value))}
-                    className="w-full accent-indigo-600 mt-2"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Technologies (Comma separated)</label>
-                <input
-                  type="text"
-                  value={formTech}
-                  onChange={(e) => setFormTech(e.target.value)}
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Skill Gap Target</label>
-                <input
-                  type="text"
-                  value={formGap}
-                  onChange={(e) => setFormGap(e.target.value)}
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-slate-300 font-medium mb-1">Project Description</label>
-                <textarea
-                  rows={3}
-                  value={formDescription}
-                  onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg p-2.5 text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-300 font-medium mb-1">GitHub URL</label>
-                  <input
-                    type="url"
-                    value={formGithub}
-                    onChange={(e) => setFormGithub(e.target.value)}
-                    className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                    type="text"
+                    required
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 font-medium mb-1">Live Demo URL</label>
-                  <input
-                    type="url"
-                    value={formDemo}
-                    onChange={(e) => setFormDemo(e.target.value)}
-                    className="w-full bg-[#090D15] border border-[#1E2638] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-indigo-500"
+                  <label className="block text-[#9AA5B1] font-medium mb-1.5">Description *</label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] text-xs focus:outline-none focus:border-[#D89B5B] leading-relaxed transition-colors min-h-[72px]"
                   />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[#9AA5B1] font-medium mb-1.5">Status</label>
+                    <select
+                      value={formStatus}
+                      onChange={(e) => setFormStatus(e.target.value as ProjectStatus)}
+                      className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors cursor-pointer"
+                    >
+                      <option value="Idea">Idea</option>
+                      <option value="Planned">Planned</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Completed">Completed</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#9AA5B1] font-medium mb-1.5">
+                      Technologies Used (comma separated)
+                    </label>
+                    <input
+                      type="text"
+                      value={formTechInput}
+                      onChange={(e) => setFormTechInput(e.target.value)}
+                      className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Skills Used (Connected to student's current skills + custom skill) */}
+                <div className="p-3.5 rounded-xl bg-[#0E151E] border border-[#202C3B] space-y-3">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <label className="block text-[#F3F0E8] font-semibold text-xs">
+                      Skills Used (Connected to Skills)
+                    </label>
+                    <span className="text-[10px] text-[#9AA5B1] font-mono px-2 py-0.5 rounded bg-[#151D26] border border-[#222E3C]">
+                      {formSelectedSkills.length} selected
+                    </span>
+                  </div>
+
+                  {/* Quick toggle chips from Current Skills */}
+                  {currentSkills.length > 0 && (
+                    <div>
+                      <span className="text-[10px] text-[#9AA5B1] block mb-2">
+                        Select from your Current Skills:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto pr-1">
+                        {currentSkills.map((skill) => {
+                          const isSelected = formSelectedSkills.includes(skill.name);
+                          return (
+                            <button
+                              type="button"
+                              key={skill.id}
+                              onClick={() => toggleSkillSelection(skill.name)}
+                              className={`px-2.5 py-1 rounded-md text-[11px] font-mono border transition-all duration-150 cursor-pointer break-words text-left max-w-full ${
+                                isSelected
+                                  ? 'bg-[#D89B5B] border-[#D89B5B] text-[#0B0F14] font-semibold shadow-sm'
+                                  : 'bg-[#151D26] border-[#222E3C] text-[#9AA5B1] hover:text-[#F3F0E8] hover:border-[#2F3F52]'
+                              }`}
+                            >
+                              {isSelected ? '✓ ' : '+ '}
+                              {skill.name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom Skill Input */}
+                  <div className="pt-2 border-t border-[#1C2634]">
+                    <span className="text-[10px] text-[#9AA5B1] block mb-1.5">
+                      Or add any custom skill manually:
+                    </span>
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                      <input
+                        type="text"
+                        value={formCustomSkillInput}
+                        onChange={(e) => setFormCustomSkillInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddCustomSkill();
+                          }
+                        }}
+                        placeholder="e.g. Prompt Engineering, WebSockets"
+                        className="w-full flex-1 bg-[#151D26] border border-[#222E3C] rounded-lg px-3 py-2 text-[#F3F0E8] placeholder-[#768393] text-xs focus:outline-none focus:border-[#D89B5B]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddCustomSkill}
+                        className="w-full sm:w-auto px-4 py-2 rounded-lg bg-[#D89B5B] hover:bg-[#E4AB70] text-[#0B0F14] font-semibold text-xs cursor-pointer flex-shrink-0 transition-colors text-center"
+                      >
+                        Add Skill
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Selected Skills Chips */}
+                  {formSelectedSkills.length > 0 && (
+                    <div className="pt-2 border-t border-[#1C2634] flex flex-wrap gap-1.5">
+                      {formSelectedSkills.map((skill) => (
+                        <span
+                          key={skill}
+                          className="px-2.5 py-1 rounded-full text-[10px] font-mono bg-[#67C5B8]/12 text-[#7CD4C8] border border-[#67C5B8]/30 flex items-center gap-1.5 max-w-full"
+                        >
+                          <span className="truncate max-w-[200px]">{skill}</span>
+                          <button
+                            type="button"
+                            onClick={() => toggleSkillSelection(skill)}
+                            className="hover:text-white p-0.5 -mr-0.5 rounded cursor-pointer"
+                            aria-label={`Remove ${skill}`}
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Links (Optional) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block text-[#9AA5B1] font-medium mb-1.5">
+                      GitHub Link (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={formGithubUrl}
+                      onChange={(e) => setFormGithubUrl(e.target.value)}
+                      className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[#9AA5B1] font-medium mb-1.5">
+                      Live Demo Link (Optional)
+                    </label>
+                    <input
+                      type="url"
+                      value={formDemoUrl}
+                      onChange={(e) => setFormDemoUrl(e.target.value)}
+                      className="w-full bg-[#0E151E] border border-[#202C3B] rounded-lg px-3 py-2.5 text-[#F3F0E8] text-xs focus:outline-none focus:border-[#D89B5B] transition-colors"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#1A2234]">
+              {/* Action Buttons Pinned at Bottom */}
+              <div className="px-4 sm:px-6 py-3.5 sm:py-4 border-t border-[#1E2938] bg-[#121922] flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2.5 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white bg-[#141B2B] hover:bg-[#1A2338] border border-[#232F4A]"
+                  className="w-full sm:w-auto min-h-[40px] px-4 py-2.5 rounded-xl bg-[#1A2430] hover:bg-[#223040] text-[#9AA5B1] hover:text-[#F3F0E8] font-medium text-xs transition-colors cursor-pointer text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl text-white font-semibold bg-indigo-600 hover:bg-indigo-500 shadow-md shadow-indigo-600/30 flex items-center gap-1.5"
+                  className="w-full sm:w-auto min-h-[40px] px-5 py-2.5 rounded-xl bg-[#D89B5B] hover:bg-[#E4AB70] text-[#0B0F14] font-semibold text-xs cursor-pointer shadow-sm transition-all duration-150 text-center hover:-translate-y-0.5 active:translate-y-0"
                 >
-                  <Save className="w-3.5 h-3.5" />
-                  <span>Update Project</span>
+                  Update Project
                 </button>
               </div>
             </form>
@@ -720,3 +990,4 @@ export const ProjectsPage: React.FC = () => {
     </div>
   );
 };
+export default ProjectsPage;

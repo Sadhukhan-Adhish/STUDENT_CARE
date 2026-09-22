@@ -44,7 +44,7 @@ export const StepInstitution: React.FC<StepInstitutionProps> = ({
           Institution &amp; Identity
         </h2>
         <p className="text-xs sm:text-sm text-slate-400 mt-1">
-          NEXORA works for students from any college or university across India and internationally.
+          UNNEXA works for students from any college or university across India and internationally.
         </p>
       </div>
 
@@ -119,7 +119,7 @@ export const StepInstitution: React.FC<StepInstitutionProps> = ({
           />
         </div>
         <p className="text-[11px] text-slate-500 mt-1">
-          You will use this University Roll Number to log in to NEXORA.
+          You will use this University Roll Number to log in to UNNEXA.
         </p>
       </div>
 
@@ -172,7 +172,7 @@ export const StepInstitution: React.FC<StepInstitutionProps> = ({
       <div className="p-3 rounded-xl bg-[#0C121E] border border-[#1A2338] flex items-start gap-2.5 text-xs text-slate-400">
         <Info className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
         <p className="leading-relaxed">
-          <strong className="text-slate-200">Universal Academic Compatibility:</strong> NEXORA is institution-agnostic. Whether you study at an autonomous engineering college, state university, or private institute, your curriculum and performance benchmarks are tailored to your department.
+          <strong className="text-slate-200">Universal Academic Compatibility:</strong> UNNEXA is institution-agnostic. Whether you study at an autonomous engineering college, state university, or private institute, your curriculum and performance benchmarks are tailored to your department.
         </p>
       </div>
 

@@ -13,11 +13,18 @@ export interface Institution {
   expectedGraduationYear?: string | number;
 }
 
+export interface SyllabusTopic {
+  id: string;
+  title: string;
+  unitOrModule?: string;
+  completed?: boolean;
+}
+
 export interface Subject {
   id?: string;
-  code: string;
+  code?: string;
   name: string;
-  credits: number;
+  credits?: number;
   semester?: number | string; // e.g. 1-8 or "Semester 3"
   semesterNumber?: number;
   // Optional academic fields
@@ -30,6 +37,7 @@ export interface Subject {
   attendance?: number;
   category?: 'Core' | 'Elective' | 'Lab' | 'Math' | string;
   status?: 'Strong' | 'Average' | 'Needs Improvement';
+  topics?: string[];
 }
 
 export type SubjectPerformance = Subject;
@@ -55,10 +63,12 @@ export interface AcademicProfile {
   totalCredits?: number;
 }
 
+export type SkillProficiency = 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+
 export interface Skill {
   id: string;
   name: string;
-  proficiency?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
+  proficiency?: SkillProficiency;
   currentLevel: number; // 0 - 100
   score?: number;
   certification?: string;
@@ -73,18 +83,20 @@ export interface Skill {
 
 export type SkillItem = Skill;
 
+export type ProjectStatus = 'Idea' | 'In Progress' | 'Completed' | 'Planned' | 'Recommended';
+
 export interface Project {
   id: string;
   title: string;
   name?: string;
   tagline?: string;
-  description: string;
+  description?: string;
   technologies: string[];
   techStack?: string[];
   skillsUsed?: string[];
   skillsCovered?: string[];
   skillGapAddressed?: string;
-  status: 'Planned' | 'In Progress' | 'Completed' | 'Recommended' | 'Idea';
+  status: ProjectStatus;
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced';
   progress?: number;
   estimatedHours?: number;
@@ -97,23 +109,47 @@ export interface Project {
 
 export interface CareerGoal {
   targetRole: string;
+  targetRoles?: string[];
+  careerGoals?: string[];
   customRole?: string;
   secondaryRole?: string;
   industryTrack?: string;
+  industryDomain?: string;
+  timeline?: string;
+  notes?: string;
+  setAt?: string;
+  updatedAt?: string;
+}
+
+export interface ResumeInfo {
+  fileName: string;
+  fileSize: string;
+  fileType: string;
+  uploadedAt: string;
+  fileData?: string; // Data URL or text representation
+  notes?: string;
 }
 
 export interface SkillGoal {
   id: string;
   skill: string;
+  name?: string;
   currentLevel: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   targetLevel: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   reason?: string;
   category?: string;
 }
 
+export type OwnSkillUpItem = SkillGoal;
+
 export interface CollegeSyllabusItem {
   id: string;
   semester: number;
+  courseOrDegree?: string;
+  branchOrProgram?: string;
+  subjectName?: string;
+  subjectCode?: string;
+  topics?: string[];
   title?: string;
   fileName?: string;
   fileSize?: string;
@@ -141,6 +177,9 @@ export interface StudentProfile {
   degree: string;
   department: string;
   graduationYear: number;
+  admissionYear?: number;
+  collegeStudentId?: string;
+  universityRegistrationNumber?: string;
   currentYear?: string | number;
   currentSemester: number;
   totalSemesters?: number;
@@ -160,6 +199,7 @@ export interface StudentProfile {
   sgpa?: number;
   targetCgpa?: number;
   targetCareer: string;
+  careerGoals?: string[];
   secondaryTargetCareer?: string;
   readinessScore?: number;
   skillScore?: number;
@@ -175,6 +215,9 @@ export interface StudentProfile {
   ownSkillUp?: SkillGoal[];
   projects?: ProjectItem[];
   syllabus?: CollegeSyllabusItem[];
+  careerGoalDetails?: CareerGoal;
+  resumeInfo?: ResumeInfo | null;
+  roadmapStages?: RoadmapStage[];
 }
 
 export interface CareerPath {
@@ -194,20 +237,23 @@ export interface CareerPath {
 export interface RoadmapTask {
   id: string;
   title: string;
-  type: 'Skill' | 'Project' | 'Course' | 'Certification';
+  type?: 'Skill' | 'Project' | 'Course' | 'Certification' | 'General';
+  status: 'Not Started' | 'In Progress' | 'Completed';
   completed: boolean;
-  estHours: number;
+  estHours?: number;
+  notes?: string;
+  dueDate?: string;
 }
 
 export interface RoadmapStage {
   id: string;
   number: number;
   title: string;
-  status: 'Completed' | 'In Progress' | 'Upcoming';
+  status: 'Not Started' | 'In Progress' | 'Completed' | 'Upcoming';
   progress: number;
-  estimatedEffort: string;
-  description: string;
-  skills: string[];
+  estimatedEffort?: string;
+  description?: string;
+  skills?: string[];
   tasks: RoadmapTask[];
 }
 
@@ -223,28 +269,39 @@ export interface AchievementBadge {
 }
 
 export const mockStudent: StudentProfile = {
-  id: 'nex-std-guest-demo',
-  rollNumber: 'GUEST-DEMO',
-  name: 'Guest Student',
-  email: 'guest@nexora.demo',
-  avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=GuestStudent',
-  university: 'Pacific Institute of Technology',
-  degree: 'Bachelor of Technology (B.Tech)',
-  department: 'Computer Science & Artificial Intelligence',
-  graduationYear: 2027,
-  currentSemester: 6,
-  cgpa: 8.74,
-  targetCgpa: 9.0,
-  targetCareer: 'Machine Learning Engineer',
-  secondaryTargetCareer: 'Full Stack Systems Engineer',
-  readinessScore: 76,
-  skillScore: 82,
-  learningStreakDays: 14,
-  totalHoursStudied: 184,
+  id: 'unx-clean-student',
+  rollNumber: '',
+  name: 'Student',
+  email: '',
+  avatar: 'https://api.dicebear.com/7.x/bottts/svg?seed=Student',
+  college: '',
+  university: '',
+  degree: '',
+  department: '',
+  graduationYear: undefined,
+  currentSemester: 1,
+  cgpa: 0,
+  targetCgpa: undefined,
+  targetCareer: '',
+  careerGoals: [],
+  secondaryTargetCareer: '',
+  readinessScore: 0,
+  skillScore: 0,
+  learningStreakDays: 0,
+  totalHoursStudied: 0,
   phone: '',
-  bio: 'Guest demonstration student profile for previewing NEXORA student intelligence features.',
+  bio: '',
   githubUrl: '',
   linkedinUrl: '',
+  semesters: [],
+  subjects: [],
+  skills: [],
+  ownSkillUp: [],
+  projects: [],
+  syllabus: [],
+  roadmapStages: [],
+  careerGoalDetails: undefined,
+  resumeInfo: undefined,
 };
 
 export const sampleGuestStudent: StudentProfile = mockStudent;
@@ -255,7 +312,7 @@ export const mockAcademicSemesters: AcademicSemester[] = [
   { semester: 'Sem 3', sgpa: 8.9, cgpa: 8.51, credits: 24 },
   { semester: 'Sem 4', sgpa: 8.65, cgpa: 8.55, credits: 23 },
   { semester: 'Sem 5', sgpa: 9.1, cgpa: 8.68, credits: 25 },
-  { semester: 'Sem 6 (Current)', sgpa: 9.25, cgpa: 8.74, credits: 24 },
+  { semester: 'Sem 6 (Current)', sgpa: 9.25, cgpa: 8.72, credits: 24 },
 ];
 
 export const mockSubjectPerformances: SubjectPerformance[] = [
@@ -269,14 +326,38 @@ export const mockSubjectPerformances: SubjectPerformance[] = [
 ];
 
 export const mockSkills: SkillItem[] = [
-  { id: '1', name: 'Python', category: 'Programming', currentLevel: 82, requiredLevel: 90, gap: 8, priority: 'High', action: 'Complete Advanced Async & Memory Profiling', trend: 'up' },
-  { id: '2', name: 'C++', category: 'Programming', currentLevel: 64, requiredLevel: 75, gap: 11, priority: 'Medium', action: 'Practice STL & Concurrency algorithms', trend: 'stable' },
-  { id: '3', name: 'Machine Learning & Scikit-Learn', category: 'AI & ML', currentLevel: 78, requiredLevel: 85, gap: 7, priority: 'High', action: 'Implement End-to-End Ensemble Pipeline', trend: 'up' },
-  { id: '4', name: 'PyTorch / Deep Learning', category: 'AI & ML', currentLevel: 52, requiredLevel: 80, gap: 28, priority: 'High', action: 'Build Transformer attention mechanisms', trend: 'up' },
-  { id: '5', name: 'SQL & Database Design', category: 'Databases & Web', currentLevel: 74, requiredLevel: 80, gap: 6, priority: 'Medium', action: 'Study index optimization & CTEs', trend: 'stable' },
-  { id: '6', name: 'React & Modern Frontend', category: 'Databases & Web', currentLevel: 68, requiredLevel: 65, gap: -3, priority: 'Low', action: 'Sufficient for target ML dashboard role', trend: 'stable' },
-  { id: '7', name: 'Docker & Containerization', category: 'DevOps & Tools', currentLevel: 42, requiredLevel: 70, gap: 28, priority: 'High', action: 'Containerize multi-container ML FastAPI apps', trend: 'up' },
-  { id: '8', name: 'Model Deployment / MLOps', category: 'AI & ML', currentLevel: 35, requiredLevel: 75, gap: 40, priority: 'High', action: 'Setup MLflow tracking and Triton serving', trend: 'up' },
+  { id: '1', name: 'Python', category: 'Programming', proficiency: 'Advanced', currentLevel: 82, requiredLevel: 90, gap: 8, priority: 'High', action: 'Complete Advanced Async & Memory Profiling', trend: 'up' },
+  { id: '2', name: 'C++', category: 'Programming', proficiency: 'Intermediate', currentLevel: 64, requiredLevel: 75, gap: 11, priority: 'Medium', action: 'Practice STL & Concurrency algorithms', trend: 'stable' },
+  { id: '3', name: 'Machine Learning', category: 'AI & ML', proficiency: 'Advanced', currentLevel: 78, requiredLevel: 85, gap: 7, priority: 'High', action: 'Implement End-to-End Ensemble Pipeline', trend: 'up' },
+  { id: '4', name: 'PyTorch / Deep Learning', category: 'AI & ML', proficiency: 'Intermediate', currentLevel: 52, requiredLevel: 80, gap: 28, priority: 'High', action: 'Build Transformer attention mechanisms', trend: 'up' },
+  { id: '5', name: 'SQL & Database Design', category: 'Databases & Web', proficiency: 'Advanced', currentLevel: 74, requiredLevel: 80, gap: 6, priority: 'Medium', action: 'Study index optimization & CTEs', trend: 'stable' },
+  { id: '6', name: 'React & Modern Frontend', category: 'Databases & Web', proficiency: 'Intermediate', currentLevel: 68, requiredLevel: 65, gap: -3, priority: 'Low', action: 'Sufficient for target ML dashboard role', trend: 'stable' },
+  { id: '7', name: 'Docker & Containerization', category: 'DevOps & Tools', proficiency: 'Beginner', currentLevel: 42, requiredLevel: 70, gap: 28, priority: 'High', action: 'Containerize multi-container ML FastAPI apps', trend: 'up' },
+  { id: '8', name: 'Git & GitHub', category: 'DevOps & Tools', proficiency: 'Advanced', currentLevel: 85, requiredLevel: 85, gap: 0, priority: 'Low', action: 'Branching, PRs & CI/CD workflows', trend: 'stable' },
+];
+
+export const mockOwnSkillUp: SkillGoal[] = [
+  {
+    id: 'skillup-1',
+    skill: 'Machine Learning',
+    currentLevel: 'Beginner',
+    targetLevel: 'Advanced',
+    reason: 'I want to improve my ML skills and build real-world models.',
+  },
+  {
+    id: 'skillup-2',
+    skill: 'Deep Learning',
+    currentLevel: 'Beginner',
+    targetLevel: 'Intermediate',
+    reason: 'Understand neural network architectures and transformer mechanisms.',
+  },
+  {
+    id: 'skillup-3',
+    skill: 'Docker',
+    currentLevel: 'Beginner',
+    targetLevel: 'Advanced',
+    reason: 'Containerize production FastAPI services for scalable deployment.',
+  },
 ];
 
 export const mockCareerPaths: CareerPath[] = [
@@ -314,7 +395,7 @@ export const mockCareerPaths: CareerPath[] = [
     openingsGrowth: '+26% YoY',
     description: 'Leverage statistical modeling, experiment design, hypothesis testing, and machine learning to extract actionable intelligence from complex datasets.',
     requiredSkills: ['Python', 'R / Julia', 'Statistical Inference', 'Tableau / PowerBI', 'Scikit-Learn', 'Feature Engineering'],
-    userStrengths: ['Statistics & Probability (89%)', 'Python (82%)', 'Academic Rigor (CGPA 8.74)'],
+    userStrengths: ['Statistics & Probability (89%)', 'Python (82%)', 'Academic Foundation & Algorithms'],
     missingSkills: ['A/B Testing Frameworks', 'Big Data (Spark/Hadoop)', 'Advanced Causal Inference'],
     suggestedProjects: ['Academic Performance Predictive Engine', 'Financial Fraud Anomaly Detector'],
     targetCompanies: ['Meta', 'Netflix', 'Palantir', 'Two Sigma', 'Bloomberg'],
@@ -332,9 +413,9 @@ export const mockRoadmapStages: RoadmapStage[] = [
     description: 'Solidify foundational computer science, discrete mathematics, object-oriented concepts, and computational problem solving.',
     skills: ['C++', 'Python Basics', 'Data Structures', 'Discrete Mathematics', 'Linux Shell'],
     tasks: [
-      { id: 't1', title: 'Master Array, Linked List, Tree & Graph Traversals', type: 'Skill', completed: true, estHours: 40 },
-      { id: 't2', title: 'Complete 100 LeetCode Medium Problems', type: 'Course', completed: true, estHours: 60 },
-      { id: 't3', title: 'Implement Custom Memory Allocator in C++', type: 'Project', completed: true, estHours: 25 },
+      { id: 't1', title: 'Master Array, Linked List, Tree & Graph Traversals', type: 'Skill', status: 'Completed', completed: true, estHours: 40 },
+      { id: 't2', title: 'Complete 100 LeetCode Medium Problems', type: 'Course', status: 'Completed', completed: true, estHours: 60 },
+      { id: 't3', title: 'Implement Custom Memory Allocator in C++', type: 'Project', status: 'Completed', completed: true, estHours: 25 },
     ],
   },
   {
@@ -347,9 +428,9 @@ export const mockRoadmapStages: RoadmapStage[] = [
     description: 'Deep dive into database architecture, operating systems, networking fundamentals, and clean API design.',
     skills: ['SQL & Schema Design', 'Algorithms', 'FastAPI & REST', 'Git & CI/CD', 'Docker Basics'],
     tasks: [
-      { id: 't4', title: 'Build Normalized Relational DB with Stored Procedures', type: 'Project', completed: true, estHours: 35 },
-      { id: 't5', title: 'Implement Dynamic Programming & Shortest Path Algorithms', type: 'Skill', completed: true, estHours: 30 },
-      { id: 't6', title: 'Deploy Containerized API service on Cloud Run', type: 'Project', completed: true, estHours: 20 },
+      { id: 't4', title: 'Build Normalized Relational DB with Stored Procedures', type: 'Project', status: 'Completed', completed: true, estHours: 35 },
+      { id: 't5', title: 'Implement Dynamic Programming & Shortest Path Algorithms', type: 'Skill', status: 'Completed', completed: true, estHours: 30 },
+      { id: 't6', title: 'Deploy Containerized API service on Cloud Run', type: 'Project', status: 'Completed', completed: true, estHours: 20 },
     ],
   },
   {
@@ -357,15 +438,15 @@ export const mockRoadmapStages: RoadmapStage[] = [
     number: 3,
     title: 'Specialized Machine Learning & Data Systems',
     status: 'In Progress',
-    progress: 68,
+    progress: 50,
     estimatedEffort: '3 Months',
     description: 'Transition from basic software to data engineering pipelines, mathematical modeling, and statistical ML algorithms.',
     skills: ['Scikit-Learn', 'Pandas & NumPy', 'PyTorch Foundations', 'Feature Engineering', 'Vector Databases'],
     tasks: [
-      { id: 't7', title: 'Train supervised ensemble models on Kaggle tabular datasets', type: 'Skill', completed: true, estHours: 35 },
-      { id: 't8', title: 'Build Landslide Risk Early-Warning Classifier', type: 'Project', completed: true, estHours: 45 },
-      { id: 't9', title: 'Implement Convolutional Neural Net from scratch in PyTorch', type: 'Course', completed: false, estHours: 30 },
-      { id: 't10', title: 'Vector Embeddings and Semantic Search Integration', type: 'Skill', completed: false, estHours: 20 },
+      { id: 't7', title: 'Train supervised ensemble models on Kaggle tabular datasets', type: 'Skill', status: 'Completed', completed: true, estHours: 35 },
+      { id: 't8', title: 'Build Landslide Risk Early-Warning Classifier', type: 'Project', status: 'Completed', completed: true, estHours: 45 },
+      { id: 't9', title: 'Implement Convolutional Neural Net from scratch in PyTorch', type: 'Course', status: 'In Progress', completed: false, estHours: 30 },
+      { id: 't10', title: 'Vector Embeddings and Semantic Search Integration', type: 'Skill', status: 'Not Started', completed: false, estHours: 20 },
     ],
   },
   {
@@ -373,43 +454,43 @@ export const mockRoadmapStages: RoadmapStage[] = [
     number: 4,
     title: 'Advanced AI Architectures & MLOps',
     status: 'In Progress',
-    progress: 25,
+    progress: 33,
     estimatedEffort: '3 Months',
     description: 'Build production-ready machine learning services with automated pipelines, continuous training, and low-latency inference.',
     skills: ['Transformers', 'MLflow / Weights & Biases', 'Docker & Kubernetes', 'ONNX Runtime', 'FastAPI Serving'],
     tasks: [
-      { id: 't11', title: 'Fine-tune an Open Source LLM for Domain Specific Q&A', type: 'Project', completed: false, estHours: 50 },
-      { id: 't12', title: 'Set up automated model tracking and registry with MLflow', type: 'Course', completed: true, estHours: 15 },
-      { id: 't13', title: 'Build High-Throughput Batch Prediction Service', type: 'Project', completed: false, estHours: 40 },
+      { id: 't11', title: 'Fine-tune an Open Source LLM for Domain Specific Q&A', type: 'Project', status: 'Not Started', completed: false, estHours: 50 },
+      { id: 't12', title: 'Set up automated model tracking and registry with MLflow', type: 'Course', status: 'Completed', completed: true, estHours: 15 },
+      { id: 't13', title: 'Build High-Throughput Batch Prediction Service', type: 'Project', status: 'In Progress', completed: false, estHours: 40 },
     ],
   },
   {
     id: 'stage-5',
     number: 5,
     title: 'Internship Preparation & System Portfolios',
-    status: 'Upcoming',
+    status: 'Not Started',
     progress: 0,
     estimatedEffort: '2 Months',
     description: 'Refine technical portfolio, polish ATS-compliant resume, conduct mock behavioral & system design interviews.',
     skills: ['System Design for AI', 'Mock Technical Rounds', 'Open Source Contributions', 'ATS Optimization'],
     tasks: [
-      { id: 't14', title: 'Conduct 5 Peer Mock System Design Sessions', type: 'Course', completed: false, estHours: 20 },
-      { id: 't15', title: 'Publish 2 Open-Source Reproducible AI Repositories', type: 'Project', completed: false, estHours: 35 },
-      { id: 't16', title: 'Attain 90+ Score on NEXORA Resume Intelligence', type: 'Certification', completed: false, estHours: 10 },
+      { id: 't14', title: 'Conduct 5 Peer Mock System Design Sessions', type: 'Course', status: 'Not Started', completed: false, estHours: 20 },
+      { id: 't15', title: 'Publish 2 Open-Source Reproducible AI Repositories', type: 'Project', status: 'Not Started', completed: false, estHours: 35 },
+      { id: 't16', title: 'Build and Verify Comprehensive Technical Portfolio', type: 'Certification', status: 'Not Started', completed: false, estHours: 10 },
     ],
   },
   {
     id: 'stage-6',
     number: 6,
     title: 'Placement & Industry Job Preparation',
-    status: 'Upcoming',
+    status: 'Not Started',
     progress: 0,
     estimatedEffort: '2 Months',
     description: 'Targeted applications, on-campus interview drives, salary negotiation strategy, and technical showcase.',
     skills: ['Placement Coding Tests', 'Domain Deep Dives', 'Leadership & Behavioral Rounds'],
     tasks: [
-      { id: 't17', title: 'Solve 50 Company-Specific Advanced Test Cases', type: 'Course', completed: false, estHours: 40 },
-      { id: 't18', title: 'Finalize Industry Capstone Project Presentation', type: 'Project', completed: false, estHours: 30 },
+      { id: 't17', title: 'Solve 50 Company-Specific Advanced Test Cases', type: 'Course', status: 'Not Started', completed: false, estHours: 40 },
+      { id: 't18', title: 'Finalize Industry Capstone Project Presentation', type: 'Project', status: 'Not Started', completed: false, estHours: 30 },
     ],
   },
 ];
@@ -418,13 +499,15 @@ export const mockProjects: ProjectItem[] = [
   {
     id: 'proj-1',
     title: 'AI Study Assistant',
+    name: 'AI Study Assistant',
     tagline: 'Context-aware dynamic study guide generator using semantic retrieval',
     description: 'A full-stack intelligence platform that ingests lecture PDFs, parses mathematical notations, generates hierarchical concept maps, and quizzes students using adaptive repetition.',
     category: 'Machine Learning',
     difficulty: 'Intermediate',
     status: 'In Progress',
     progress: 75,
-    technologies: ['React', 'TypeScript', 'FastAPI', 'Python', 'ChromaDB', 'Gemini Flash'],
+    technologies: ['React', 'TypeScript', 'FastAPI', 'Python', 'ChromaDB'],
+    skillsUsed: ['Python', 'FastAPI', 'React', 'Machine Learning'],
     skillsCovered: ['Python', 'FastAPI', 'Vector Search', 'React', 'Prompt Engineering'],
     skillGapAddressed: 'FastAPI & Vector Database Integration (+18%)',
     estimatedHours: 45,
@@ -434,13 +517,15 @@ export const mockProjects: ProjectItem[] = [
   {
     id: 'proj-2',
     title: 'Landslide Risk Prediction Engine',
+    name: 'Landslide Risk Prediction Engine',
     tagline: 'Geospatial ML classifier predicting precipitation-triggered hazards',
     description: 'Trained ensemble models on satellite soil moisture, slope gradient, and historical rainfall data. Achieved 91.4% ROC-AUC with explainable SHAP feature importance visualizations.',
     category: 'Machine Learning',
     difficulty: 'Advanced',
     status: 'Completed',
     progress: 100,
-    technologies: ['Python', 'Scikit-Learn', 'XGBoost', 'GeoPandas', 'SHAP', 'Streamlit'],
+    technologies: ['Python', 'Scikit-Learn', 'XGBoost', 'GeoPandas', 'Streamlit'],
+    skillsUsed: ['Python', 'Machine Learning', 'Statistical Analysis'],
     skillsCovered: ['Data Science', 'Machine Learning', 'Feature Engineering', 'Statistical Analysis'],
     skillGapAddressed: 'Ensemble Learning & Feature Selection (+22%)',
     estimatedHours: 60,
@@ -449,6 +534,7 @@ export const mockProjects: ProjectItem[] = [
   {
     id: 'proj-3',
     title: 'Smart Finance Dashboard',
+    name: 'Smart Finance Dashboard',
     tagline: 'Real-time expenditure tracking with automated budget anomaly detection',
     description: 'Architected a reactive financial telemetry tool that categorizes transaction streams, predicts end-of-month runway, and flags unusual variance with Isolation Forests.',
     category: 'Full Stack',
@@ -456,6 +542,7 @@ export const mockProjects: ProjectItem[] = [
     status: 'Completed',
     progress: 100,
     technologies: ['React', 'Tailwind CSS', 'PostgreSQL', 'Node.js', 'Recharts'],
+    skillsUsed: ['React', 'SQL & Database Design', 'JavaScript'],
     skillsCovered: ['SQL', 'Database Normalization', 'React', 'Data Visualization'],
     skillGapAddressed: 'SQL Query Optimization & Real-Time Aggregations (+15%)',
     estimatedHours: 40,
@@ -464,13 +551,15 @@ export const mockProjects: ProjectItem[] = [
   {
     id: 'proj-4',
     title: 'Computer Vision Defect Detector',
+    name: 'Computer Vision Defect Detector',
     tagline: 'Real-time surface anomaly detection using fine-tuned MobileNet & ONNX',
     description: 'Engineered an edge-ready computer vision pipeline identifying manufacturing imperfections on micro-assemblies with under 35ms latency per frame.',
     category: 'Computer Vision',
     difficulty: 'Advanced',
-    status: 'Recommended',
+    status: 'Idea',
     progress: 0,
     technologies: ['PyTorch', 'OpenCV', 'ONNX Runtime', 'Docker', 'Python'],
+    skillsUsed: ['PyTorch / Deep Learning', 'Computer Vision', 'Docker & Containerization'],
     skillsCovered: ['Deep Learning', 'PyTorch', 'Docker', 'Computer Vision'],
     skillGapAddressed: 'Directly addresses your largest PyTorch & Docker gap (-28% deficit)',
     estimatedHours: 55,
@@ -478,13 +567,15 @@ export const mockProjects: ProjectItem[] = [
   {
     id: 'proj-5',
     title: 'Full Stack Career Tracker',
+    name: 'Full Stack Career Tracker',
     tagline: 'High-concurrency student progress telemetry and job opportunity matching',
     description: 'Build an asynchronous job scraper, resume keyword aligner, and interview round tracking board with push notifications and calendar synchronization.',
     category: 'Cloud & Systems',
     difficulty: 'Intermediate',
-    status: 'Recommended',
+    status: 'Idea',
     progress: 0,
     technologies: ['Go / Python', 'PostgreSQL', 'Redis', 'Docker', 'Tailwind CSS'],
+    skillsUsed: ['SQL & Database Design', 'Docker & Containerization', 'Python'],
     skillsCovered: ['System Design', 'Redis Caching', 'Docker', 'Backend Services'],
     skillGapAddressed: 'Fills Backend Systems & Microservices Gap (+20%)',
     estimatedHours: 50,
@@ -519,7 +610,7 @@ export const mockResumeAnalysis = {
     'Kubernetes Cluster Deployment',
   ],
   strengths: [
-    'Outstanding academic record (CGPA 8.74 / 10) prominently showcased',
+    'Solid academic record and core technical foundation prominently showcased',
     'Clear quantitative impact metrics in Landslide Risk ML project (91.4% ROC-AUC)',
     'Strong computer science core foundation (Data Structures, Algorithms, DBMS)',
     'Concise 1-page format with clean standard ATS typography and clear section headers',
@@ -540,7 +631,7 @@ export const mockResumeAnalysis = {
 };
 
 export const mockAchievements: AchievementBadge[] = [
-  { id: 'b1', title: '14-Day Streak', description: 'Maintained continuous daily learning activity on NEXORA', icon: 'Flame', unlockedAt: 'Yesterday', category: 'Streak' },
+  { id: 'b1', title: '14-Day Streak', description: 'Maintained continuous daily learning activity on UNNEXA', icon: 'Flame', unlockedAt: 'Yesterday', category: 'Streak' },
   { id: 'b2', title: 'Algorithm Virtuoso', description: 'Attained A+ in Design & Analysis of Algorithms', icon: 'Award', unlockedAt: 'Aug 2026', category: 'Academic' },
   { id: 'b3', title: 'First ML Model Shipped', description: 'Trained and deployed Landslide Prediction model', icon: 'Cpu', unlockedAt: 'Jul 2026', category: 'Project' },
   { id: 'b4', title: 'ATS Optimizer', description: 'Elevated Resume Match Score from 62 to 84', icon: 'FileCheck', unlockedAt: 'Sep 2026', category: 'Skill' },
@@ -566,11 +657,52 @@ export const mockWeeklyActivity = [
   { day: 'Sun', hours: 4.5, tasks: 5 },
 ];
 
-// Initialize mockStudent with nested dynamic collections
-mockStudent.semesters = mockAcademicSemesters;
-mockStudent.subjects = mockSubjectPerformances;
-mockStudent.skills = mockSkills;
-mockStudent.projects = mockProjects;
+export const mockCollegeSyllabus: CollegeSyllabusItem[] = [
+  {
+    id: 'syl-cs301',
+    semester: 6,
+    courseOrDegree: 'B.Tech',
+    branchOrProgram: 'Computer Science & AI',
+    subjectName: 'Design & Analysis of Algorithms',
+    subjectCode: 'CS301',
+    title: 'Algorithms & Computational Complexity',
+    topics: ['Divide and Conquer', 'Greedy Method', 'Dynamic Programming', 'Graph Algorithms', 'NP-Completeness'],
+    uploadedAt: 'Semester 6 Start',
+  },
+  {
+    id: 'syl-cs302',
+    semester: 6,
+    courseOrDegree: 'B.Tech',
+    branchOrProgram: 'Computer Science & AI',
+    subjectName: 'Database Management Systems',
+    subjectCode: 'CS302',
+    title: 'Relational Database Architecture & Query Processing',
+    topics: ['ER Modeling', 'Relational Algebra & Normalization', 'Indexing & B+ Trees', 'Transaction & Concurrency', 'Crash Recovery'],
+    uploadedAt: 'Semester 6 Start',
+  },
+  {
+    id: 'syl-cs303',
+    semester: 6,
+    courseOrDegree: 'B.Tech',
+    branchOrProgram: 'Computer Science & AI',
+    subjectName: 'Machine Learning Fundamentals',
+    subjectCode: 'CS303',
+    title: 'Statistical Learning & Deep Representations',
+    topics: ['Linear & Logistic Regression', 'Support Vector Machines', 'Decision Trees & Ensembles', 'Neural Networks', 'Unsupervised Clustering'],
+    uploadedAt: 'Semester 6 Start',
+  },
+];
+
+// Initialize mockStudent with empty collections (starts from zero)
+mockStudent.semesters = [];
+mockStudent.subjects = [];
+mockStudent.skills = [];
+mockStudent.ownSkillUp = [];
+mockStudent.projects = [];
+mockStudent.syllabus = [];
+mockStudent.roadmapStages = [];
+mockStudent.careerGoalDetails = undefined;
+mockStudent.resumeInfo = undefined;
 
 // Academic Calculation Helpers
 export const gradeToPoints = (grade: string): number => {

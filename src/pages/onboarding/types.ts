@@ -39,5 +39,6 @@ export interface OnboardingData {
 
   // Step 7: Career Goal
   targetCareer: string;
+  careerGoals: string[];
   customCareer: string;
 }

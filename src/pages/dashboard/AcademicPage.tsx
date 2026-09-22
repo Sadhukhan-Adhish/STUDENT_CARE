@@ -14,6 +14,10 @@ import {
   Search,
   AlertCircle,
   BarChart2,
+  ChevronRight,
+  Eye,
+  Layers,
+  Check,
 } from 'lucide-react';
 import {
   BarChart,
@@ -30,49 +34,63 @@ import {
   mockStudent,
   SubjectPerformance,
   AcademicSemester,
+  CollegeSyllabusItem,
   calculateSGPA,
   calculateCGPA,
   hasEnoughDataForSGPA,
   hasEnoughDataForCGPA,
 } from '../../data/mockData';
+import { SubjectDetailModal } from '../../components/academic/SubjectDetailModal';
+import { SemesterModal } from '../../components/academic/SemesterModal';
+import { CollegeSyllabusSection } from '../../components/academic/CollegeSyllabusSection';
 
 export const AcademicPage: React.FC = () => {
-  const { user, addSubject, updateSubject, deleteSubject, addSemester } = useAuth();
-  const student = user?.studentProfile || mockStudent;
+  const {
+    user,
+    addSubject,
+    updateSubject,
+    deleteSubject,
+    addSemester,
+    updateSemester,
+    deleteSemester,
+    setCurrentSemester,
+    addSyllabusItem,
+    updateSyllabusItem,
+    deleteSyllabusItem,
+  } = useAuth();
 
+  const student = user?.studentProfile || mockStudent;
   const subjects = student.subjects || [];
   const semesters = student.semesters || [];
-  const totalSemesters = student.totalSemesters || 8;
+  const syllabusList = student.syllabus || [];
+  const activeCurrentSemester = student.currentSemester || 1;
 
-  // Selected semester tab for viewing
+  // Selected semester tab for viewing subjects
   const [selectedSemesterTab, setSelectedSemesterTab] = useState<number | 'All'>('All');
   const [filterCategory, setFilterCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Modals state
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isAddSemesterOpen, setIsAddSemesterOpen] = useState(false);
-  const [deleteConfirmCode, setDeleteConfirmCode] = useState<string | null>(null);
-  const [selectedSubject, setSelectedSubject] = useState<SubjectPerformance | null>(null);
+  const [isAddSubjectOpen, setIsAddSubjectOpen] = useState(false);
+  const [isEditSubjectOpen, setIsEditSubjectOpen] = useState(false);
+  const [isSemesterModalOpen, setIsSemesterModalOpen] = useState(false);
+  const [editingSemesterData, setEditingSemesterData] = useState<AcademicSemester | null>(null);
+  const [detailModalSubject, setDetailModalSubject] = useState<SubjectPerformance | null>(null);
+  const [selectedSubjectToEdit, setSelectedSubjectToEdit] = useState<SubjectPerformance | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  // Form states for Add / Edit Subject
-  const [formCode, setFormCode] = useState('');
+  // Subject Form States (Only Subject Name * is required!)
   const [formName, setFormName] = useState('');
-  const [formCategory, setFormCategory] = useState<'Core' | 'Elective' | 'Math' | 'Lab'>('Core');
-  const [formCredits, setFormCredits] = useState<number>(3);
-  const [formSemester, setFormSemester] = useState<number>(student.currentSemester || 3);
+  const [formCode, setFormCode] = useState('');
+  const [formSemester, setFormSemester] = useState<number>(activeCurrentSemester);
+  const [formCategory, setFormCategory] = useState<'Core' | 'Elective' | 'Math' | 'Lab' | string>('Core');
+  const [formCredits, setFormCredits] = useState<string>('3');
   const [formInternalMarks, setFormInternalMarks] = useState<string>('');
   const [formExternalMarks, setFormExternalMarks] = useState<string>('');
   const [formTotalMarks, setFormTotalMarks] = useState<string>('');
   const [formGrade, setFormGrade] = useState('');
   const [formScore, setFormScore] = useState<string>('');
   const [formAttendance, setFormAttendance] = useState<string>('');
-
-  // Form state for Add Semester
-  const [semName, setSemName] = useState(`Semester ${(semesters.length || 0) + 1}`);
-  const [semSgpa, setSemSgpa] = useState<string>('8.5');
-  const [semCredits, setSemCredits] = useState<number>(20);
 
   // Real academic calculations
   const hasSgpaData = hasEnoughDataForSGPA(subjects);
@@ -81,17 +99,27 @@ export const AcademicPage: React.FC = () => {
   const hasCgpaData = hasEnoughDataForCGPA(semesters) || (student.cgpa !== undefined && student.cgpa > 0);
   const calculatedCgpa = calculateCGPA(semesters) ?? student.cgpa;
 
-  const currentCredits = subjects.reduce((sum, s) => sum + (s.credits || 3), 0);
+  // Credits computed only from entered numbers
+  const subjectsWithCredits = subjects.filter((s) => typeof s.credits === 'number');
+  const currentCredits = subjectsWithCredits.reduce((sum, s) => sum + (s.credits || 0), 0);
 
   const subjectsWithAttendance = subjects.filter((s) => typeof s.attendance === 'number' && !isNaN(s.attendance));
   const avgAttendance =
     subjectsWithAttendance.length > 0
-      ? Math.round(subjectsWithAttendance.reduce((sum, s) => sum + (s.attendance || 0), 0) / subjectsWithAttendance.length)
+      ? Math.round(
+          subjectsWithAttendance.reduce((sum, s) => sum + (s.attendance || 0), 0) / subjectsWithAttendance.length
+        )
       : null;
 
   const strongSubjects = subjects.filter(
-    (s) => s.grade === 'A+' || s.grade === 'O' || s.grade === 'A' || (s.score && s.score >= 80)
+    (s) =>
+      s.grade === 'A+' ||
+      s.grade === 'O' ||
+      s.grade === 'A' ||
+      (typeof s.score === 'number' && s.score >= 80) ||
+      (typeof s.totalMarks === 'number' && s.totalMarks >= 80)
   );
+
   const improvementSubjects = subjects.filter(
     (s) =>
       s.grade === 'C' ||
@@ -101,51 +129,75 @@ export const AcademicPage: React.FC = () => {
       (typeof s.attendance === 'number' && s.attendance < 75)
   );
 
+  // Compute available semester tabs (use student semesters + distinct from subjects + up to course total)
+  const maxSemInUse = Math.max(
+    activeCurrentSemester,
+    semesters.length,
+    ...subjects.map((s) => (typeof s.semester === 'number' ? s.semester : Number(String(s.semester).replace(/[^0-9]/g, '')) || 1)),
+    ...syllabusList.map((s) => s.semester || 1),
+    6
+  );
+  const totalSemestersToOffer = Math.min(Math.max(maxSemInUse, 8), 10);
+
   // Filtered subjects list
   const filteredSubjects = subjects.filter((s) => {
-    const semNumber = typeof s.semester === 'number' ? s.semester : Number(String(s.semester).replace(/[^0-9]/g, '')) || 0;
+    const semNumber =
+      typeof s.semester === 'number'
+        ? s.semester
+        : Number(String(s.semester).replace(/[^0-9]/g, '')) || s.semesterNumber || activeCurrentSemester;
     const matchesSemester = selectedSemesterTab === 'All' || semNumber === selectedSemesterTab;
     const matchesCategory = filterCategory === 'All' || s.category === filterCategory;
     const matchesSearch =
       s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.code.toLowerCase().includes(searchQuery.toLowerCase());
+      (s.code && s.code.toLowerCase().includes(searchQuery.toLowerCase()));
     return matchesSemester && matchesCategory && matchesSearch;
   });
 
-  const openAddModal = () => {
-    setFormCode('');
+  const isCompletelyEmpty = subjects.length === 0 && semesters.length === 0;
+
+  // Open Add Subject Modal
+  const openAddSubjectModal = (presetSemester?: number) => {
+    setSelectedSubjectToEdit(null);
     setFormName('');
+    setFormCode('');
+    setFormSemester(
+      presetSemester || (selectedSemesterTab === 'All' ? activeCurrentSemester : selectedSemesterTab)
+    );
     setFormCategory('Core');
-    setFormCredits(3);
-    setFormSemester(selectedSemesterTab === 'All' ? student.currentSemester || 3 : selectedSemesterTab);
+    setFormCredits('3');
     setFormInternalMarks('');
     setFormExternalMarks('');
     setFormTotalMarks('');
     setFormGrade('');
     setFormScore('');
     setFormAttendance('');
-    setIsAddModalOpen(true);
+    setIsAddSubjectOpen(true);
   };
 
-  const openEditModal = (sub: SubjectPerformance) => {
-    setSelectedSubject(sub);
-    setFormCode(sub.code);
+  // Open Edit Subject Modal
+  const openEditSubjectModal = (sub: SubjectPerformance) => {
+    setSelectedSubjectToEdit(sub);
     setFormName(sub.name);
-    setFormCategory((sub.category as any) || 'Core');
-    setFormCredits(sub.credits || 3);
-    setFormSemester(typeof sub.semester === 'number' ? sub.semester : Number(String(sub.semester).replace(/[^0-9]/g, '')) || student.currentSemester || 3);
+    setFormCode(sub.code || '');
+    const sem =
+      typeof sub.semester === 'number'
+        ? sub.semester
+        : Number(String(sub.semester).replace(/[^0-9]/g, '')) || sub.semesterNumber || activeCurrentSemester;
+    setFormSemester(sem);
+    setFormCategory(sub.category || 'Core');
+    setFormCredits(sub.credits !== undefined ? String(sub.credits) : '');
     setFormInternalMarks(sub.internalMarks !== undefined ? String(sub.internalMarks) : '');
     setFormExternalMarks(sub.externalMarks !== undefined ? String(sub.externalMarks) : '');
     setFormTotalMarks(sub.totalMarks !== undefined ? String(sub.totalMarks) : '');
     setFormGrade(sub.grade || '');
     setFormScore(sub.score !== undefined ? String(sub.score) : '');
     setFormAttendance(sub.attendance !== undefined ? String(sub.attendance) : '');
-    setIsEditModalOpen(true);
+    setIsEditSubjectOpen(true);
   };
 
-  const handleSaveAdd = (e: React.FormEvent) => {
+  const handleSaveAddSubject = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formCode.trim() || !formName.trim()) return;
+    if (!formName.trim()) return;
 
     const scoreNum = formScore ? Number(formScore) : formTotalMarks ? Number(formTotalMarks) : undefined;
     const attNum = formAttendance ? Number(formAttendance) : undefined;
@@ -159,11 +211,12 @@ export const AcademicPage: React.FC = () => {
     }
 
     addSubject({
-      code: formCode.trim().toUpperCase(),
       name: formName.trim(),
-      category: formCategory,
-      credits: Number(formCredits) || 3,
+      code: formCode.trim().toUpperCase() || undefined,
+      category: formCategory || undefined,
+      credits: formCredits ? Number(formCredits) : undefined,
       semester: formSemester,
+      semesterNumber: formSemester,
       internalMarks: formInternalMarks ? Number(formInternalMarks) : undefined,
       externalMarks: formExternalMarks ? Number(formExternalMarks) : undefined,
       totalMarks: formTotalMarks ? Number(formTotalMarks) : undefined,
@@ -173,12 +226,12 @@ export const AcademicPage: React.FC = () => {
       status,
     });
 
-    setIsAddModalOpen(false);
+    setIsAddSubjectOpen(false);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEditSubject = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSubject) return;
+    if (!selectedSubjectToEdit || !formName.trim()) return;
 
     const scoreNum = formScore ? Number(formScore) : formTotalMarks ? Number(formTotalMarks) : undefined;
     const attNum = formAttendance ? Number(formAttendance) : undefined;
@@ -191,12 +244,15 @@ export const AcademicPage: React.FC = () => {
       status = 'Needs Improvement';
     }
 
-    updateSubject(selectedSubject.code, {
-      code: formCode.trim().toUpperCase(),
+    const idOrCode = selectedSubjectToEdit.id || selectedSubjectToEdit.code || selectedSubjectToEdit.name;
+
+    updateSubject(idOrCode, {
       name: formName.trim(),
-      category: formCategory,
-      credits: Number(formCredits) || 3,
+      code: formCode.trim().toUpperCase() || undefined,
+      category: formCategory || undefined,
+      credits: formCredits ? Number(formCredits) : undefined,
       semester: formSemester,
+      semesterNumber: formSemester,
       internalMarks: formInternalMarks ? Number(formInternalMarks) : undefined,
       externalMarks: formExternalMarks ? Number(formExternalMarks) : undefined,
       totalMarks: formTotalMarks ? Number(formTotalMarks) : undefined,
@@ -206,370 +262,502 @@ export const AcademicPage: React.FC = () => {
       status,
     });
 
-    setIsEditModalOpen(false);
+    setIsEditSubjectOpen(false);
   };
 
-  const handleDelete = (code: string) => {
-    deleteSubject(code);
-    setDeleteConfirmCode(null);
+  const handleDeleteSubject = (idOrCode: string) => {
+    deleteSubject(idOrCode);
+    setDeleteConfirmId(null);
   };
 
-  const handleAddSemester = (e: React.FormEvent) => {
-    e.preventDefault();
-    const sgpaVal = semSgpa ? Number(semSgpa) : undefined;
-    addSemester({
-      semester: semName.trim(),
-      sgpa: sgpaVal,
-      cgpa: calculatedCgpa,
-      credits: Number(semCredits) || 20,
-    });
-    setIsAddSemesterOpen(false);
+  const handleOpenSemesterModal = (sem?: AcademicSemester) => {
+    setEditingSemesterData(sem || null);
+    setIsSemesterModalOpen(true);
+  };
+
+  const handleSaveSemester = (sem: AcademicSemester, isCurrent?: boolean) => {
+    if (editingSemesterData) {
+      updateSemester(editingSemesterData.semester, sem);
+    } else {
+      addSemester(sem);
+    }
+    if (isCurrent && sem.semesterNumber) {
+      setCurrentSemester(sem.semesterNumber);
+    }
+  };
+
+  const handleDeleteSemester = (semIdentifier: string | number) => {
+    deleteSemester(semIdentifier);
+  };
+
+  // Find linked syllabus item for subject detail modal if any
+  const getLinkedSyllabusItem = (sub: SubjectPerformance | null): CollegeSyllabusItem | undefined => {
+    if (!sub) return undefined;
+    return syllabusList.find(
+      (s) =>
+        (sub.code && s.subjectCode && s.subjectCode.toUpperCase() === sub.code.toUpperCase()) ||
+        (s.subjectName && s.subjectName.toLowerCase() === sub.name.toLowerCase())
+    );
   };
 
   return (
     <div className="space-y-6 pb-12 font-sans">
+      {/* Page Header */}
       <PageHeader
         title="Academic Performance & Coursework"
         subtitle={
           user?.isGuest
-            ? 'Preview transcript analysis, semester SGPA telemetry, and coursework management in Guest Mode.'
-            : `Live transcript analysis, semester SGPA telemetry, and coursework management for Roll Number ${student.rollNumber}.`
+            ? 'Manage your coursework, semester performance, and syllabus tracking in your guest session.'
+            : `Coursework, semester performance, and syllabus management for ${student.name || 'Student'}${student.rollNumber ? ` (${student.rollNumber})` : ''}.`
         }
-        badge={user?.isGuest ? 'Guest Exploration' : `Semester ${student.currentSemester} Active`}
+        badge={user?.isGuest ? 'Guest Session' : `Semester ${activeCurrentSemester} Active`}
         actions={
           <div className="flex items-center gap-2.5">
             <button
-              onClick={openAddModal}
-              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-500 border border-indigo-400/30 shadow-md shadow-indigo-600/30 transition-all flex items-center gap-1.5 cursor-pointer"
+              onClick={() => openAddSubjectModal()}
+              className="px-3.5 py-2 rounded-xl text-xs font-semibold text-[#0B0F14] bg-[#D89B5B] hover:bg-[#E4AB70] transition-all duration-150 flex items-center gap-1.5 cursor-pointer shadow-sm hover:-translate-y-0.5 active:translate-y-0"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Subject</span>
             </button>
             <button
-              onClick={() => setIsAddSemesterOpen(true)}
-              className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white bg-[#141A28] hover:bg-[#1A2234] border border-[#212C42] transition-all flex items-center gap-1.5 cursor-pointer"
+              onClick={() => handleOpenSemesterModal()}
+              className="px-3 py-2 rounded-xl text-xs font-semibold text-[#F3F0E8] bg-[#1B2533] hover:bg-[#223042] border border-[#27384B] transition-all duration-150 flex items-center gap-1.5 cursor-pointer"
             >
-              <Calendar className="w-3.5 h-3.5" />
+              <Calendar className="w-3.5 h-3.5 text-[#D89B5B]" />
               <span>Add Semester</span>
             </button>
           </div>
         }
       />
 
-      {/* First-Time Student Guidance Bar */}
-      <div className="p-3.5 rounded-xl bg-[#0F1424] border border-[#1B253D] flex items-center gap-3 text-xs text-slate-300">
-        <div className="p-1.5 rounded-lg bg-indigo-500/20 text-indigo-400 flex-shrink-0">
-          <BookOpen className="w-4 h-4" />
+      {/* Academic Identity & Current Semester Banner */}
+      <div className="p-4 rounded-2xl bg-[#151D26] border border-[#202C3B] hover:border-[#27384B] transition-all duration-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-xl bg-[#D89B5B]/15 border border-[#D89B5B]/30 text-[#D89B5B] mt-0.5">
+            <GraduationCap className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-bold text-[#F3F0E8] font-heading">
+                {student.college || student.university || 'University'}
+              </h3>
+              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#1B2533] text-[#D89B5B] border border-[#27384B]">
+                {student.degree || 'Undergraduate'} • {student.department || 'General'}
+              </span>
+            </div>
+            <p className="text-xs text-[#9AA5B1] mt-0.5">
+              Roll No: <span className="font-mono text-[#F3F0E8]">{student.rollNumber}</span>
+              {student.graduationYear ? ` • Graduating Class of ${student.graduationYear}` : ''}
+            </p>
+          </div>
         </div>
-        <p className="leading-relaxed">
-          <strong className="text-white font-medium">Academic Guidance:</strong> Your coursework records power NEXORA's skill-gap engine. Log your current courses, internal marks, and semester SGPA to automatically unlock personalized project suggestions and career roadmap stages.
-        </p>
+
+        {/* Current Semester Selector / Indicator */}
+        <div className="flex items-center gap-2.5 flex-shrink-0 bg-[#0E151E] p-1.5 rounded-xl border border-[#202C3B]">
+          <span className="text-[11px] font-mono text-[#9AA5B1] pl-2">Current Semester:</span>
+          <select
+            value={activeCurrentSemester}
+            onChange={(e) => setCurrentSemester(Number(e.target.value))}
+            className="px-2.5 py-1 rounded-lg bg-[#1B2533] text-[#F3F0E8] border border-[#27384B] text-xs font-mono font-bold focus:outline-none focus:border-[#D89B5B] cursor-pointer"
+          >
+            {Array.from({ length: 8 }, (_, i) => i + 1).map((s) => (
+              <option key={s} value={s} className="bg-[#151D26] text-[#F3F0E8]">
+                Semester {s}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
+
+      {/* EMPTY STATE HERO FOR NEW STUDENT WITHOUT ACADEMIC RECORDS */}
+      {isCompletelyEmpty && !user?.isGuest && (
+        <div className="p-8 rounded-2xl bg-[#151D26] border border-dashed border-[#27384B] text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#D89B5B]/15 border border-[#D89B5B]/30 flex items-center justify-center mx-auto text-[#D89B5B]">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <div className="max-w-md mx-auto">
+            <h3 className="text-base font-bold text-[#F3F0E8]">Your Academic Profile</h3>
+            <p className="text-xs text-[#9AA5B1] mt-1.5 leading-relaxed">
+              Add your semester subjects and academic records to start tracking your academic progress.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => openAddSubjectModal()}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#0B0F14] bg-[#D89B5B] hover:bg-[#E4AB70] transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer shadow-sm hover:-translate-y-0.5 active:translate-y-0"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Subject</span>
+            </button>
+            <button
+              onClick={() => handleOpenSemesterModal()}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#F3F0E8] bg-[#1B2533] hover:bg-[#223042] border border-[#27384B] transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Calendar className="w-3.5 h-3.5 text-[#D89B5B]" />
+              <span>Add Semester Data</span>
+            </button>
+            <button
+              onClick={() => {
+                const sylSection = document.getElementById('college-syllabus-section');
+                sylSection?.scrollIntoView({ behavior: 'smooth' });
+              }}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-[#F3F0E8] bg-[#1B2533] hover:bg-[#223042] border border-[#27384B] transition-all duration-150 inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Layers className="w-3.5 h-3.5 text-[#67C5B8]" />
+              <span>Add College Syllabus</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Top Academic Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Cumulative CGPA */}
         <StatCard
           title="Cumulative CGPA"
-          value={hasCgpaData && calculatedCgpa ? calculatedCgpa.toFixed(2) : 'Pending'}
-          change={hasCgpaData ? `Target: ${student.targetCgpa || 9.0}` : 'No SGPA recorded'}
-          changeType={hasCgpaData ? 'positive' : 'neutral'}
+          value={hasCgpaData && calculatedCgpa && calculatedCgpa > 0 ? calculatedCgpa.toFixed(2) : '—'}
+          change={hasCgpaData && calculatedCgpa && calculatedCgpa > 0 ? `Target: ${student.targetCgpa || 9.0}` : 'No academic data yet'}
+          changeType={hasCgpaData && calculatedCgpa && calculatedCgpa > 0 ? 'positive' : 'neutral'}
           subtext={
-            hasCgpaData
+            hasCgpaData && calculatedCgpa && calculatedCgpa > 0
               ? `${semesters.length} Semesters Recorded`
-              : 'Add your semester results to calculate CGPA.'
+              : 'Add semester results to compute'
           }
           icon={GraduationCap}
-          accentColor="indigo"
+          accentColor="copper"
         />
 
         {/* Current SGPA */}
         <StatCard
-          title={`Semester ${student.currentSemester} SGPA`}
-          value={hasSgpaData && currentSgpa !== null ? currentSgpa.toFixed(2) : 'Pending'}
-          change={hasSgpaData ? `${currentCredits} Credits Computed` : 'Awaiting Grades'}
-          changeType={hasSgpaData ? 'positive' : 'neutral'}
+          title={`Semester ${activeCurrentSemester} SGPA`}
+          value={hasSgpaData && currentSgpa !== null && currentSgpa > 0 ? currentSgpa.toFixed(2) : '—'}
+          change={hasSgpaData && currentSgpa !== null && currentSgpa > 0 ? `${currentCredits} Credits Computed` : 'Awaiting grades'}
+          changeType={hasSgpaData && currentSgpa !== null && currentSgpa > 0 ? 'positive' : 'neutral'}
           subtext={
-            hasSgpaData
+            hasSgpaData && currentSgpa !== null && currentSgpa > 0
               ? `${subjects.length} registered courses`
-              : 'Add your semester results to calculate SGPA.'
+              : 'Add marks and credits to compute'
           }
           icon={Award}
-          accentColor="cyan"
+          accentColor="teal"
         />
 
         {/* Attendance */}
         <StatCard
           title="Curriculum Attendance"
-          value={avgAttendance !== null ? `${avgAttendance}%` : 'Not Logged'}
+          value={avgAttendance !== null ? `${avgAttendance}%` : 'Not recorded'}
           change={
             avgAttendance !== null
               ? avgAttendance >= 75
                 ? 'Exam Eligible (≥75%)'
                 : 'Warning: Below 75%'
-              : 'Add subject attendance'
+              : 'No attendance data yet'
           }
           changeType={avgAttendance !== null && avgAttendance >= 75 ? 'positive' : 'neutral'}
-          subtext={avgAttendance !== null ? 'Institutional threshold: 75%' : 'No attendance data recorded yet'}
+          subtext={
+            avgAttendance !== null
+              ? 'Institutional threshold: 75%'
+              : 'Add subject attendance to evaluate'
+          }
           icon={Calendar}
-          accentColor="emerald"
+          accentColor="teal"
         />
 
         {/* Course Competency */}
         <StatCard
-          title="Competency Status"
-          value={`${strongSubjects.length} Strong / ${improvementSubjects.length} Focus`}
-          change={subjects.length > 0 ? `${subjects.length} Enrolled` : 'No Subjects'}
-          changeType="positive"
+          title="Course Competencies"
+          value={subjects.length > 0 ? `${strongSubjects.length} Strong / ${improvementSubjects.length} Focus` : 'No subjects'}
+          change={subjects.length > 0 ? `${subjects.length} Courses Enrolled` : 'No courses enrolled'}
+          changeType={subjects.length > 0 ? 'positive' : 'neutral'}
           subtext={
             subjects.length > 0
               ? `${strongSubjects.length} courses in Strong tier`
               : 'Add subjects to evaluate competency'
           }
           icon={Sparkles}
-          accentColor="purple"
+          accentColor="copper"
         />
-      </div>
-
-      {/* Dynamic Diagnostic Notice */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-950/30 via-[#0E1424] to-[#0A0D16] border border-indigo-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-start gap-3">
-          <div className="p-2.5 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 mt-0.5">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-white">
-              {user?.isGuest ? 'Guest Demonstration Curriculum' : `Academic Record for ${student.name} (${student.department || student.degree})`}
-            </h3>
-            <p className="text-xs text-slate-300 mt-1 max-w-3xl leading-relaxed">
-              {user?.isGuest ? (
-                <>Sample engineering coursework shown in Guest Mode. Explore courses, add custom subjects, or create your permanent student profile.</>
-              ) : (
-                <>Enrolled in <strong className="text-white">{student.college || student.university}</strong>. Currently in Semester {student.currentSemester} with {subjects.length} tracked subjects. Target Career: <span className="text-indigo-300 font-semibold">{student.targetCareer}</span>.</>
-              )}
-            </p>
-          </div>
-        </div>
-        <div className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-[#141B2B] border border-[#212C42] text-xs font-mono text-amber-300">
-          Roll No: {user?.isGuest ? 'GUEST-DEMO' : student.rollNumber}
-        </div>
       </div>
 
       {/* Semester Progression Chart & Diagnostics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Progression Curve */}
-        <div className="lg:col-span-2 rounded-2xl bg-[#0D111A] border border-[#1B2232] p-6 shadow-xl">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Progression Curve</span>
-              <h2 className="text-lg font-bold text-white mt-0.5">Semester Grade Point Averages</h2>
+        <div className="lg:col-span-2 rounded-2xl bg-[#151D26] border border-[#202C3B] p-6 shadow-xl transition-all duration-200 hover:border-[#27384B] flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <span className="text-xs font-mono uppercase tracking-wider text-[#9AA5B1]">Progression Curve</span>
+                <h2 className="text-lg font-bold text-[#F3F0E8] mt-0.5">Semester Grade Point Averages</h2>
+              </div>
+              <button
+                onClick={() => handleOpenSemesterModal()}
+                className="text-xs font-mono text-[#D89B5B] hover:text-[#E4AB70] font-semibold flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                <span>Add / Edit Semester</span>
+              </button>
             </div>
-            <span className="text-xs font-mono text-indigo-400 font-semibold">
-              {semesters.length} Semesters Logged
-            </span>
+
+            {semesters.length > 0 && semesters.some((s) => typeof s.sgpa === 'number' && s.sgpa > 0) ? (
+              <div className="h-60 w-full min-h-[240px]">
+                <ResponsiveContainer width="100%" height="100%" minHeight={240} initialDimension={{ width: 600, height: 240 }}>
+                  <BarChart data={semesters} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#202C3B" vertical={false} />
+                    <XAxis dataKey="semester" stroke="#768393" tick={{ fontSize: 11 }} />
+                    <YAxis domain={[0, 10]} stroke="#768393" tick={{ fontSize: 11 }} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#151D26',
+                        borderColor: '#27384B',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        color: '#F3F0E8',
+                      }}
+                    />
+                    <Bar dataKey="sgpa" fill="#D89B5B" radius={[4, 4, 0, 0]} name="Semester SGPA" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-60 flex flex-col items-center justify-center p-6 text-center border border-dashed border-[#27384B] rounded-xl bg-[#0E151E]">
+                <BarChart2 className="w-10 h-10 text-[#768393] mb-2" />
+                <p className="text-sm font-semibold text-[#F3F0E8]">No Semester SGPA History Recorded</p>
+                <p className="text-xs text-[#9AA5B1] mt-1 max-w-sm">
+                  Add your completed semester SGPA using the "Add Semester" button to visualize your academic progression curve.
+                </p>
+              </div>
+            )}
           </div>
 
-          {semesters.length > 0 && semesters.some((s) => typeof s.sgpa === 'number' && s.sgpa > 0) ? (
-            <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={semesters} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#182234" vertical={false} />
-                  <XAxis dataKey="semester" stroke="#64748B" tick={{ fontSize: 11 }} />
-                  <YAxis domain={[0, 10]} stroke="#64748B" tick={{ fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0D131F',
-                      borderColor: '#222C42',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: '#F8FAFC',
-                    }}
-                  />
-                  <Bar dataKey="sgpa" fill="#6366F1" radius={[4, 4, 0, 0]} name="Semester SGPA" />
-                </BarChart>
-              </ResponsiveContainer>
+          <div className="mt-4 pt-3 border-t border-[#1E2938] grid grid-cols-3 gap-2 text-center text-xs">
+            <div className="p-2.5 rounded-xl bg-[#0E151E] border border-[#202C3B]">
+              <span className="text-[#9AA5B1] block text-[10px]">Registered Courses</span>
+              <span className="font-mono font-bold text-[#F3F0E8]">{subjects.length} Subjects</span>
             </div>
-          ) : (
-            <div className="h-64 flex flex-col items-center justify-center p-6 text-center border border-dashed border-[#1E2638] rounded-xl bg-[#090D15]">
-              <BarChart2 className="w-10 h-10 text-slate-600 mb-2" />
-              <p className="text-sm font-semibold text-slate-300">No Semester SGPA History Recorded Yet</p>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm">
-                Add your completed semester SGPA using the "Add Semester" button above to visualize your academic progression curve.
-              </p>
+            <div className="p-2.5 rounded-xl bg-[#0E151E] border border-[#202C3B]">
+              <span className="text-[#9AA5B1] block text-[10px]">Total Credits</span>
+              <span className="font-mono font-bold text-[#D89B5B]">{currentCredits} Credits</span>
             </div>
-          )}
-
-          <div className="mt-4 pt-3 border-t border-[#182030] grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="p-2.5 rounded-xl bg-[#101522] border border-[#192233]">
-              <span className="text-slate-400 block text-[10px]">Registered Courses</span>
-              <span className="font-mono font-bold text-slate-200">{subjects.length} Subjects</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[#101522] border border-[#192233]">
-              <span className="text-slate-400 block text-[10px]">Semester Credits</span>
-              <span className="font-mono font-bold text-indigo-400">{currentCredits} Credits</span>
-            </div>
-            <div className="p-2.5 rounded-xl bg-[#101522] border border-[#192233]">
-              <span className="text-slate-400 block text-[10px]">Calculated SGPA</span>
-              <span className="font-mono font-bold text-emerald-400">
+            <div className="p-2.5 rounded-xl bg-[#0E151E] border border-[#202C3B]">
+              <span className="text-[#9AA5B1] block text-[10px]">Calculated SGPA</span>
+              <span className="font-mono font-bold text-[#67C5B8]">
                 {currentSgpa !== null ? currentSgpa.toFixed(2) : 'Awaiting Grades'}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Strong vs Improvement Subjects */}
-        <div className="rounded-2xl bg-[#0D111A] border border-[#1B2232] p-6 shadow-xl flex flex-col justify-between">
+        {/* Strong vs Focus Remediation Card */}
+        <div className="rounded-2xl bg-[#151D26] border border-[#202C3B] p-6 shadow-xl transition-all duration-200 hover:border-[#27384B] flex flex-col justify-between">
           <div>
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Diagnostic Summary</span>
-            <h2 className="text-lg font-bold text-white mt-0.5">Subject Health Status</h2>
+            <span className="text-xs font-mono uppercase tracking-wider text-[#9AA5B1]">Diagnostic Summary</span>
+            <h2 className="text-lg font-bold text-[#F3F0E8] mt-0.5">Subject Health Status</h2>
 
             <div className="mt-4 space-y-4">
               {/* Strong Subjects */}
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#67C5B8] mb-2">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>Strong Competencies ({strongSubjects.length})</span>
                 </div>
                 <div className="space-y-1.5">
-                  {strongSubjects.slice(0, 3).map((s) => (
-                    <div key={s.code} className="p-2.5 rounded-xl bg-[#111726] border border-[#1B263B] text-xs flex justify-between items-center">
+                  {strongSubjects.slice(0, 3).map((s, idx) => (
+                    <div
+                      key={s.id || s.code || idx}
+                      onClick={() => setDetailModalSubject(s)}
+                      className="p-2.5 rounded-xl bg-[#0E151E] border border-[#202C3B] text-xs flex justify-between items-center cursor-pointer hover:border-[#67C5B8]/40 transition-all duration-150"
+                    >
                       <div>
-                        <span className="font-medium text-slate-200">{s.name}</span>
-                        <span className="text-[10px] text-slate-400 block font-mono">
-                          {s.code} • {s.credits} Credits {s.semester ? `• Sem ${s.semester}` : ''}
+                        <span className="font-medium text-[#F3F0E8]">{s.name}</span>
+                        <span className="text-[10px] text-[#9AA5B1] block font-mono">
+                          {s.code || 'Core Course'} {s.credits ? `• ${s.credits} Credits` : ''}
                         </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded font-mono font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
-                        {s.grade || 'Strong'} {s.score ? `(${s.score}%)` : ''}
+                      <span className="px-2 py-0.5 rounded font-mono font-bold bg-[#67C5B8]/15 text-[#7CD4C8] border border-[#67C5B8]/30">
+                        {s.grade || 'Strong'}
                       </span>
                     </div>
                   ))}
                   {strongSubjects.length === 0 && (
-                    <p className="text-xs text-slate-400 italic">No strong subjects logged yet.</p>
+                    <p className="text-xs text-[#768393] italic">No strong subjects logged yet.</p>
                   )}
                 </div>
               </div>
 
               {/* Needs Improvement */}
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-[#D89B5B] mb-2">
                   <AlertTriangle className="w-4 h-4" />
                   <span>Attendance &amp; Score Focus ({improvementSubjects.length})</span>
                 </div>
                 <div className="space-y-1.5">
-                  {improvementSubjects.slice(0, 3).map((s) => (
-                    <div key={s.code} className="p-2.5 rounded-xl bg-[#111726] border border-[#1B263B] text-xs flex justify-between items-center">
+                  {improvementSubjects.slice(0, 3).map((s, idx) => (
+                    <div
+                      key={s.id || s.code || idx}
+                      onClick={() => setDetailModalSubject(s)}
+                      className="p-2.5 rounded-xl bg-[#0E151E] border border-[#202C3B] text-xs flex justify-between items-center cursor-pointer hover:border-[#D89B5B]/40 transition-all duration-150"
+                    >
                       <div>
-                        <span className="font-medium text-slate-200">{s.name}</span>
-                        <span className={`text-[10px] block font-mono ${typeof s.attendance === 'number' && s.attendance < 75 ? 'text-rose-400 font-bold' : 'text-amber-400/80'}`}>
-                          {s.attendance !== undefined ? `Att: ${s.attendance}%` : ''} {typeof s.attendance === 'number' && s.attendance < 75 ? '⚠ Below 75%' : ''}
+                        <span className="font-medium text-[#F3F0E8]">{s.name}</span>
+                        <span className={`text-[10px] block font-mono ${typeof s.attendance === 'number' && s.attendance < 75 ? 'text-rose-400 font-bold' : 'text-[#D89B5B]/90'}`}>
+                          {s.attendance !== undefined ? `Att: ${s.attendance}%` : 'Review Marks'}
                         </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded font-mono font-bold bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                        {s.grade || 'Review'} {s.score ? `(${s.score}%)` : ''}
+                      <span className="px-2 py-0.5 rounded font-mono font-bold bg-[#D89B5B]/15 text-[#E8B47E] border border-[#D89B5B]/30">
+                        {s.grade || 'Review'}
                       </span>
                     </div>
                   ))}
                   {improvementSubjects.length === 0 && (
-                    <p className="text-xs text-emerald-400/80">No subjects currently require critical remediation.</p>
+                    <p className="text-xs text-[#768393] italic">No remediation needed at this time.</p>
                   )}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="mt-4 pt-3 border-t border-[#182030] text-[11px] text-slate-400">
-            Attendance threshold for university exam eligibility is 75%.
+          <div className="mt-4 pt-3 border-t border-[#1E2938] text-[11px] text-[#9AA5B1]">
+            Attendance threshold for university exam eligibility is typically 75%.
           </div>
         </div>
       </div>
 
       {/* Course Curriculum & Subject Management */}
-      <div className="rounded-2xl bg-[#0D111A] border border-[#1B2232] p-6 shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+      <div className="rounded-2xl bg-[#151D26] border border-[#202C3B] p-6 shadow-xl space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-mono uppercase tracking-wider text-slate-400">Coursework Management</span>
-            <h2 className="text-lg font-bold text-white mt-0.5">
-              Subject Portfolio ({filteredSubjects.length} of {subjects.length})
+            <span className="text-xs font-mono uppercase tracking-wider text-[#9AA5B1]">Coursework Portfolio</span>
+            <h2 className="text-lg font-bold text-[#F3F0E8] mt-0.5">
+              Subject List ({filteredSubjects.length} of {subjects.length})
             </h2>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
             {/* Search Input */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-[#9AA5B1] absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search subject or code..."
-                className="bg-[#121826] border border-[#1D273C] rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500"
+                className="bg-[#0E151E] border border-[#202C3B] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#F3F0E8] placeholder-[#768393] focus:outline-none focus:border-[#D89B5B]"
               />
             </div>
 
             {/* Filter Category Chips */}
-            <div className="flex items-center gap-1 bg-[#121826] p-1 rounded-lg border border-[#1D273C]">
+            <div className="flex items-center gap-1 bg-[#0E151E] p-1 rounded-lg border border-[#202C3B]">
               {['All', 'Core', 'Elective', 'Math', 'Lab'].map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setFilterCategory(cat)}
                   className={`px-2.5 py-1 rounded text-xs font-medium transition-all cursor-pointer ${
                     filterCategory === cat
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-[#D89B5B] text-[#0B0F14] font-semibold shadow-sm'
+                      : 'text-[#9AA5B1] hover:text-[#F3F0E8]'
                   }`}
                 >
                   {cat}
                 </button>
               ))}
             </div>
+
+            <button
+              onClick={() => openAddSubjectModal()}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#D89B5B] hover:bg-[#E4AB70] text-[#0B0F14] inline-flex items-center gap-1.5 cursor-pointer shadow-sm transition-all duration-150"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add Subject</span>
+            </button>
           </div>
         </div>
 
-        {/* Organize Subjects by Semester Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-3 mb-4 scrollbar-none border-b border-[#1A2234]">
+        {/* Semester Tabs Bar */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none border-b border-[#202C3B]">
           <button
             onClick={() => setSelectedSemesterTab('All')}
             className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all whitespace-nowrap cursor-pointer ${
               selectedSemesterTab === 'All'
-                ? 'bg-indigo-600 text-white font-bold'
-                : 'bg-[#101522] text-slate-400 hover:text-white border border-[#1A2234]'
+                ? 'bg-[#D89B5B] text-[#0B0F14] font-bold shadow-sm'
+                : 'bg-[#0E151E] text-[#9AA5B1] hover:text-[#F3F0E8] border border-[#202C3B]'
             }`}
           >
             All Semesters ({subjects.length})
           </button>
-          {Array.from({ length: totalSemesters }, (_, i) => i + 1).map((semNum) => {
+          {Array.from({ length: totalSemestersToOffer }, (_, i) => i + 1).map((semNum) => {
             const count = subjects.filter((s) => {
-              const num = typeof s.semester === 'number' ? s.semester : Number(String(s.semester).replace(/[^0-9]/g, ''));
+              const num =
+                typeof s.semester === 'number'
+                  ? s.semester
+                  : Number(String(s.semester).replace(/[^0-9]/g, '')) || s.semesterNumber;
               return num === semNum;
             }).length;
             const isSelected = selectedSemesterTab === semNum;
+            const isCurrent = activeCurrentSemester === semNum;
+
             return (
               <button
                 key={semNum}
                 onClick={() => setSelectedSemesterTab(semNum)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer ${
                   isSelected
-                    ? 'bg-indigo-600 text-white font-bold'
-                    : 'bg-[#101522] text-slate-400 hover:text-white border border-[#1A2234]'
+                    ? 'bg-[#D89B5B] text-[#0B0F14] font-bold shadow-sm'
+                    : isCurrent
+                    ? 'bg-[#1B2533] text-[#7CD4C8] border border-[#67C5B8]/30'
+                    : 'bg-[#0E151E] text-[#9AA5B1] hover:text-[#F3F0E8] border border-[#202C3B]'
                 }`}
               >
-                Sem {semNum} {count > 0 ? `(${count})` : ''}
+                <span>Sem {semNum} {count > 0 ? `(${count})` : ''}</span>
+                {isCurrent && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#67C5B8]" title="Active Current Semester" />
+                )}
               </button>
             );
           })}
         </div>
 
+        {/* Active Semester Quick Header (when viewing a specific semester) */}
+        {selectedSemesterTab !== 'All' && (
+          <div className="p-3.5 rounded-xl bg-[#0E151E] border border-[#202C3B] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-[#F3F0E8] font-mono">Semester {selectedSemesterTab}</span>
+              {activeCurrentSemester === selectedSemesterTab ? (
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#67C5B8]/15 text-[#7CD4C8] border border-[#67C5B8]/30">
+                  Current Active Semester
+                </span>
+              ) : (
+                <button
+                  onClick={() => setCurrentSemester(selectedSemesterTab)}
+                  className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#1B2533] text-[#9AA5B1] hover:text-[#F3F0E8] border border-[#27384B] cursor-pointer"
+                >
+                  Set as Current Semester
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => openAddSubjectModal(selectedSemesterTab)}
+                className="text-xs font-semibold text-[#D89B5B] hover:text-[#E4AB70] flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Subject to Sem {selectedSemesterTab}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Subjects List or Empty State */}
         {filteredSubjects.length === 0 ? (
-          <div className="py-12 px-4 text-center rounded-xl bg-[#090D15] border border-dashed border-[#1E2638]">
-            <BookOpen className="w-9 h-9 text-slate-600 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-slate-200">No subjects found in this view</p>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-              Add your semester subjects to calculate SGPA and track your academic progression.
+          <div className="py-12 px-4 text-center rounded-xl bg-[#0E151E] border border-dashed border-[#27384B]">
+            <BookOpen className="w-9 h-9 text-[#768393] mx-auto mb-2" />
+            <p className="text-sm font-semibold text-[#F3F0E8]">No subjects found in this view</p>
+            <p className="text-xs text-[#9AA5B1] mt-1 max-w-sm mx-auto">
+              Add your subjects to calculate your SGPA and track coursework topics. Only Subject Name is required.
             </p>
             <button
-              onClick={openAddModal}
-              className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white inline-flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/30"
+              onClick={() => openAddSubjectModal(selectedSemesterTab === 'All' ? activeCurrentSemester : selectedSemesterTab)}
+              className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold bg-[#D89B5B] hover:bg-[#E4AB70] text-[#0B0F14] inline-flex items-center gap-1.5 cursor-pointer shadow-sm"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Subject</span>
@@ -579,221 +767,286 @@ export const AcademicPage: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="border-b border-[#1A2234] text-slate-400 font-mono text-[11px] uppercase">
-                  <th className="py-3 px-3">Course Code</th>
+                <tr className="border-b border-[#202C3B] text-[#9AA5B1] font-mono text-[11px] uppercase">
                   <th className="py-3 px-3">Subject Name</th>
+                  <th className="py-3 px-3">Code</th>
                   <th className="py-3 px-3">Semester</th>
-                  <th className="py-3 px-3">Category</th>
                   <th className="py-3 px-3">Credits</th>
                   <th className="py-3 px-3">Grade</th>
-                  <th className="py-3 px-3">Internal / External</th>
-                  <th className="py-3 px-3">Total / Score</th>
+                  <th className="py-3 px-3">Marks</th>
                   <th className="py-3 px-3">Attendance</th>
+                  <th className="py-3 px-3">Syllabus</th>
                   <th className="py-3 px-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#151D2C]">
-                {filteredSubjects.map((sub) => (
-                  <tr key={sub.code} className="hover:bg-[#121828] transition-colors group">
-                    <td className="py-3 px-3 font-mono font-semibold text-indigo-300">{sub.code}</td>
-                    <td className="py-3 px-3 font-medium text-white">{sub.name}</td>
-                    <td className="py-3 px-3 font-mono text-slate-400">
-                      {sub.semester ? `Sem ${sub.semester}` : `Sem ${student.currentSemester}`}
-                    </td>
-                    <td className="py-3 px-3">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#161D2E] text-slate-300 border border-[#212C42]">
-                        {sub.category || 'Core'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-3 font-mono text-slate-300">{sub.credits}</td>
-                    <td className="py-3 px-3 font-mono font-bold text-white">
-                      {sub.grade || <span className="text-slate-500 font-normal italic">Pending</span>}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-slate-400">
-                      {sub.internalMarks !== undefined || sub.externalMarks !== undefined
-                        ? `${sub.internalMarks ?? '-'}/${sub.externalMarks ?? '-'}`
-                        : '-'}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-slate-200">
-                      {sub.score !== undefined ? `${sub.score}%` : sub.totalMarks !== undefined ? `${sub.totalMarks}` : '-'}
-                    </td>
-                    <td className="py-3 px-3 font-mono">
-                      {sub.attendance !== undefined ? (
-                        <span className={sub.attendance < 75 ? 'text-rose-400 font-bold' : 'text-emerald-400'}>
-                          {sub.attendance}%
-                        </span>
-                      ) : (
-                        <span className="text-slate-500 font-normal italic">-</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      {deleteConfirmCode === sub.code ? (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleDelete(sub.code)}
-                            className="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-semibold cursor-pointer"
-                          >
-                            Confirm Delete
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmCode(null)}
-                            className="px-2 py-1 rounded bg-[#1C2538] text-slate-400 hover:text-white text-[10px] cursor-pointer"
-                          >
-                            Cancel
-                          </button>
+              <tbody className="divide-y divide-[#1E2938]">
+                {filteredSubjects.map((sub, idx) => {
+                  const subId = sub.id || sub.code || `sub-${idx}`;
+                  const linkedSyllabus = getLinkedSyllabusItem(sub);
+                  const topicCount = linkedSyllabus?.topics?.length || sub.topics?.length || 0;
+
+                  return (
+                    <tr
+                      key={subId}
+                      className="hover:bg-[#1B2533]/50 transition-colors group cursor-pointer"
+                      onClick={() => setDetailModalSubject(sub)}
+                    >
+                      <td className="py-3 px-3 font-medium text-[#F3F0E8]">
+                        <div className="flex items-center gap-2">
+                          <span>{sub.name}</span>
+                          {sub.category && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-[#0E151E] text-[#9AA5B1] border border-[#202C3B]">
+                              {sub.category}
+                            </span>
+                          )}
                         </div>
-                      ) : (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => openEditModal(sub)}
-                            className="p-1.5 rounded hover:bg-[#1A2338] text-slate-400 hover:text-white transition-colors cursor-pointer"
-                            title="Edit Subject"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmCode(sub.code)}
-                            className="p-1.5 rounded hover:bg-rose-500/10 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer"
-                            title="Delete Subject"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-3 px-3 font-mono font-semibold text-[#D89B5B]">
+                        {sub.code || <span className="text-[#768393] italic font-normal">-</span>}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-[#9AA5B1]">
+                        Sem {sub.semester || sub.semesterNumber || activeCurrentSemester}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-[#F3F0E8]">
+                        {sub.credits !== undefined ? sub.credits : '-'}
+                      </td>
+                      <td className="py-3 px-3 font-mono font-bold text-[#F3F0E8]">
+                        {sub.grade || <span className="text-[#768393] font-normal italic">Pending</span>}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-[#F3F0E8]">
+                        {sub.internalMarks !== undefined || sub.externalMarks !== undefined ? (
+                          <span>
+                            {sub.internalMarks ?? '-'}/{sub.externalMarks ?? '-'}
+                          </span>
+                        ) : sub.score !== undefined ? (
+                          `${sub.score}%`
+                        ) : sub.totalMarks !== undefined ? (
+                          sub.totalMarks
+                        ) : (
+                          '-'
+                        )}
+                      </td>
+                      <td className="py-3 px-3 font-mono">
+                        {sub.attendance !== undefined ? (
+                          <span className={sub.attendance < 75 ? 'text-rose-400 font-bold' : 'text-[#67C5B8]'}>
+                            {sub.attendance}%
+                          </span>
+                        ) : (
+                          <span className="text-[#768393] font-normal italic">-</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 font-mono text-[#9AA5B1]">
+                        {topicCount > 0 ? (
+                          <span className="inline-flex items-center gap-1 text-[#67C5B8] text-[11px]">
+                            <Layers className="w-3 h-3 text-[#67C5B8]" />
+                            <span>{topicCount} Units</span>
+                          </span>
+                        ) : (
+                          <span className="text-[#768393] italic text-[11px]">-</span>
+                        )}
+                      </td>
+                      <td
+                        className="py-3 px-3 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {deleteConfirmId === subId ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleDeleteSubject(subId)}
+                              className="px-2 py-1 rounded bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-semibold cursor-pointer"
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(null)}
+                              className="px-2 py-1 rounded bg-[#1B2533] text-[#9AA5B1] hover:text-[#F3F0E8] text-[10px] cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => setDetailModalSubject(sub)}
+                              className="p-1.5 rounded hover:bg-[#1B2533] text-[#9AA5B1] hover:text-[#F3F0E8] transition-colors cursor-pointer"
+                              title="View Details"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => openEditSubjectModal(sub)}
+                              className="p-1.5 rounded hover:bg-[#1B2533] text-[#9AA5B1] hover:text-[#F3F0E8] transition-colors cursor-pointer"
+                              title="Edit Subject"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setDeleteConfirmId(subId)}
+                              className="p-1.5 rounded hover:bg-rose-500/10 text-[#9AA5B1] hover:text-rose-400 transition-colors cursor-pointer"
+                              title="Delete Subject"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
+      {/* COLLEGE SYLLABUS SECTION */}
+      <div id="college-syllabus-section">
+        <CollegeSyllabusSection
+          syllabusList={syllabusList}
+          subjects={subjects}
+          currentSemester={activeCurrentSemester}
+          degree={student.degree}
+          department={student.department}
+          college={student.college || student.university}
+          onAddSyllabus={addSyllabusItem}
+          onUpdateSyllabus={updateSyllabusItem}
+          onDeleteSyllabus={deleteSyllabusItem}
+        />
+      </div>
+
       {/* MODAL: ADD SUBJECT */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#0D121C] border border-[#1E2638] rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#1E2638]">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-indigo-400" />
-                <span>Add Subject / Course</span>
+      {isAddSubjectOpen && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-[#151D26] border border-[#27384B] rounded-2xl p-6 shadow-2xl space-y-4 my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-[#202C3B]">
+              <h3 className="text-base font-bold text-[#F3F0E8] flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-[#D89B5B]" />
+                <span>Add Subject</span>
               </h3>
               <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-[#182030] text-slate-400 hover:text-white cursor-pointer"
+                onClick={() => setIsAddSubjectOpen(false)}
+                className="p-1 rounded-lg hover:bg-[#1B2533] text-[#9AA5B1] hover:text-[#F3F0E8] cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveAdd} className="space-y-3.5">
+            <form onSubmit={handleSaveAddSubject} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono text-[#9AA5B1] mb-1">
+                  Subject Name <span className="text-rose-400 font-bold">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="e.g. Data Structures, Applied Calculus, Operating Systems"
+                  className="w-full px-3 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] placeholder-[#768393] focus:outline-none focus:border-[#D89B5B]"
+                  required
+                />
+                <span className="text-[11px] text-[#768393] mt-0.5 block font-mono">
+                  Only Subject Name is required. All other fields below are optional.
+                </span>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Subject Code *</label>
+                  <label className="block text-xs font-mono text-[#9AA5B1] mb-1">
+                    Subject Code (Optional)
+                  </label>
                   <input
                     type="text"
                     value={formCode}
                     onChange={(e) => setFormCode(e.target.value)}
-                    placeholder="e.g. CS301"
-                    className="w-full px-3 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white font-mono uppercase focus:outline-none focus:border-indigo-500"
-                    required
+                    placeholder="e.g. CS201"
+                    className="w-full px-3 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono uppercase focus:outline-none focus:border-[#D89B5B]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Subject Name *</label>
-                  <input
-                    type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    placeholder="e.g. Computer Networks"
-                    className="w-full px-3 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white focus:outline-none focus:border-indigo-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Semester</label>
+                  <label className="block text-xs font-mono text-[#9AA5B1] mb-1">Semester</label>
                   <select
                     value={formSemester}
                     onChange={(e) => setFormSemester(Number(e.target.value))}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white"
+                    className="w-full px-2.5 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] focus:border-[#D89B5B]"
                   >
-                    {Array.from({ length: totalSemesters }, (_, i) => i + 1).map((s) => (
-                      <option key={s} value={s}>
+                    {Array.from({ length: 8 }, (_, i) => i + 1).map((s) => (
+                      <option key={s} value={s} className="bg-[#151D26] text-[#F3F0E8]">
                         Semester {s}
                       </option>
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Category</label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value as any)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white"
-                  >
-                    <option value="Core">Core</option>
-                    <option value="Elective">Elective</option>
-                    <option value="Lab">Lab</option>
-                    <option value="Math">Math</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Credits *</label>
+                  <label className="block text-xs font-mono text-[#9AA5B1] mb-1">Credits (Optional)</label>
                   <input
                     type="number"
                     value={formCredits}
-                    onChange={(e) => setFormCredits(Number(e.target.value))}
-                    min={1}
-                    max={6}
-                    className="w-full px-3 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white font-mono"
-                    required
+                    onChange={(e) => setFormCredits(e.target.value)}
+                    placeholder="e.g. 3 or 4"
+                    min={0}
+                    max={10}
+                    className="w-full px-3 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-mono text-[#9AA5B1] mb-1">Category (Optional)</label>
+                  <select
+                    value={formCategory}
+                    onChange={(e) => setFormCategory(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] focus:border-[#D89B5B]"
+                  >
+                    <option value="Core" className="bg-[#151D26] text-[#F3F0E8]">Core</option>
+                    <option value="Elective" className="bg-[#151D26] text-[#F3F0E8]">Elective</option>
+                    <option value="Lab" className="bg-[#151D26] text-[#F3F0E8]">Lab</option>
+                    <option value="Math" className="bg-[#151D26] text-[#F3F0E8]">Math</option>
+                    <option value="Humanities" className="bg-[#151D26] text-[#F3F0E8]">Humanities</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#090D15] border border-[#1A2234] space-y-3">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 block">
+              <div className="p-3.5 rounded-xl bg-[#0E151E] border border-[#202C3B] space-y-3">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#9AA5B1] block">
                   Performance &amp; Attendance (Optional)
                 </span>
                 <div className="grid grid-cols-3 gap-2.5">
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">Grade (e.g. A+)</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">Grade</label>
                     <input
                       type="text"
                       value={formGrade}
                       onChange={(e) => setFormGrade(e.target.value)}
-                      placeholder="e.g. A"
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono uppercase"
+                      placeholder="e.g. A+"
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono uppercase focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">Internal Marks</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">Internal Marks</label>
                     <input
                       type="number"
                       value={formInternalMarks}
                       onChange={(e) => setFormInternalMarks(e.target.value)}
                       placeholder="e.g. 28"
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono"
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">External Marks</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">External Marks</label>
                     <input
                       type="number"
                       value={formExternalMarks}
                       onChange={(e) => setFormExternalMarks(e.target.value)}
-                      placeholder="e.g. 62"
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono"
+                      placeholder="e.g. 64"
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">Total Score / %</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">Total Score / %</label>
                     <input
                       type="number"
                       value={formScore}
@@ -801,11 +1054,11 @@ export const AcademicPage: React.FC = () => {
                       placeholder="e.g. 88"
                       min={0}
                       max={100}
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono"
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">Attendance %</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">Attendance %</label>
                     <input
                       type="number"
                       value={formAttendance}
@@ -813,23 +1066,23 @@ export const AcademicPage: React.FC = () => {
                       placeholder="e.g. 92"
                       min={0}
                       max={100}
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono"
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-2">
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#202C3B]">
                 <button
                   type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-[#101522] border border-[#1E2638] cursor-pointer"
+                  onClick={() => setIsAddSubjectOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[#9AA5B1] hover:text-[#F3F0E8] bg-[#1B2533] border border-[#27384B] cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#D89B5B] hover:bg-[#E4AB70] text-[#0B0F14] shadow-sm cursor-pointer transition-all duration-150"
                 >
                   Save Subject
                 </button>
@@ -840,156 +1093,163 @@ export const AcademicPage: React.FC = () => {
       )}
 
       {/* MODAL: EDIT SUBJECT */}
-      {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-[#0D121C] border border-[#1E2638] rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#1E2638]">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Edit2 className="w-4 h-4 text-indigo-400" />
-                <span>Edit Subject ({selectedSubject?.code})</span>
+      {isEditSubjectOpen && selectedSubjectToEdit && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="w-full max-w-lg bg-[#151D26] border border-[#27384B] rounded-2xl p-6 shadow-2xl space-y-4 my-8">
+            <div className="flex items-center justify-between pb-3 border-b border-[#202C3B]">
+              <h3 className="text-base font-bold text-[#F3F0E8] flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-[#D89B5B]" />
+                <span>Edit Subject</span>
               </h3>
               <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-[#182030] text-slate-400 hover:text-white cursor-pointer"
+                onClick={() => setIsEditSubjectOpen(false)}
+                className="p-1 rounded-lg hover:bg-[#1B2533] text-[#9AA5B1] hover:text-[#F3F0E8] cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEdit} className="space-y-3.5">
+            <form onSubmit={handleSaveEditSubject} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono text-[#9AA5B1] mb-1">
+                  Subject Name <span className="text-rose-400 font-bold">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] focus:outline-none focus:border-[#D89B5B]"
+                  required
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Subject Code *</label>
+                  <label className="block text-xs font-mono text-[#9AA5B1] mb-1">
+                    Subject Code (Optional)
+                  </label>
                   <input
                     type="text"
                     value={formCode}
                     onChange={(e) => setFormCode(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white font-mono uppercase"
-                    required
+                    className="w-full px-3 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono uppercase focus:outline-none focus:border-[#D89B5B]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Subject Name *</label>
-                  <input
-                    type="text"
-                    value={formName}
-                    onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Semester</label>
+                  <label className="block text-xs font-mono text-[#9AA5B1] mb-1">Semester</label>
                   <select
                     value={formSemester}
                     onChange={(e) => setFormSemester(Number(e.target.value))}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white"
+                    className="w-full px-2.5 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] focus:border-[#D89B5B]"
                   >
-                    {Array.from({ length: totalSemesters }, (_, i) => i + 1).map((s) => (
-                      <option key={s} value={s}>
+                    {Array.from({ length: 8 }, (_, i) => i + 1).map((s) => (
+                      <option key={s} value={s} className="bg-[#151D26] text-[#F3F0E8]">
                         Semester {s}
                       </option>
                     ))}
                   </select>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Category</label>
-                  <select
-                    value={formCategory}
-                    onChange={(e) => setFormCategory(e.target.value as any)}
-                    className="w-full px-2.5 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white"
-                  >
-                    <option value="Core">Core</option>
-                    <option value="Elective">Elective</option>
-                    <option value="Lab">Lab</option>
-                    <option value="Math">Math</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Credits *</label>
+                  <label className="block text-xs font-mono text-[#9AA5B1] mb-1">Credits (Optional)</label>
                   <input
                     type="number"
                     value={formCredits}
-                    onChange={(e) => setFormCredits(Number(e.target.value))}
-                    min={1}
-                    max={6}
-                    className="w-full px-3 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white font-mono"
-                    required
+                    onChange={(e) => setFormCredits(e.target.value)}
+                    min={0}
+                    max={10}
+                    className="w-full px-3 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-mono text-[#9AA5B1] mb-1">Category (Optional)</label>
+                  <select
+                    value={formCategory}
+                    onChange={(e) => setFormCategory(e.target.value)}
+                    className="w-full px-2.5 py-2 rounded-lg bg-[#0E151E] border border-[#202C3B] text-xs text-[#F3F0E8] focus:border-[#D89B5B]"
+                  >
+                    <option value="Core" className="bg-[#151D26] text-[#F3F0E8]">Core</option>
+                    <option value="Elective" className="bg-[#151D26] text-[#F3F0E8]">Elective</option>
+                    <option value="Lab" className="bg-[#151D26] text-[#F3F0E8]">Lab</option>
+                    <option value="Math" className="bg-[#151D26] text-[#F3F0E8]">Math</option>
+                    <option value="Humanities" className="bg-[#151D26] text-[#F3F0E8]">Humanities</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="p-3 rounded-xl bg-[#090D15] border border-[#1A2234] space-y-3">
-                <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400 block">
-                  Performance &amp; Attendance
+              <div className="p-3.5 rounded-xl bg-[#0E151E] border border-[#202C3B] space-y-3">
+                <span className="text-[11px] font-mono uppercase tracking-wider text-[#9AA5B1] block">
+                  Performance &amp; Attendance (Optional)
                 </span>
                 <div className="grid grid-cols-3 gap-2.5">
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">Grade</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">Grade</label>
                     <input
                       type="text"
                       value={formGrade}
                       onChange={(e) => setFormGrade(e.target.value)}
-                      placeholder="e.g. A+"
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono uppercase"
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono uppercase focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">Internal</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">Internal Marks</label>
                     <input
                       type="number"
                       value={formInternalMarks}
                       onChange={(e) => setFormInternalMarks(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono"
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">External</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">External Marks</label>
                     <input
                       type="number"
                       value={formExternalMarks}
                       onChange={(e) => setFormExternalMarks(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono"
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5">
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">Total Score / %</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">Total Score / %</label>
                     <input
                       type="number"
                       value={formScore}
                       onChange={(e) => setFormScore(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono"
+                      min={0}
+                      max={100}
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-mono text-slate-400 mb-1">Attendance %</label>
+                    <label className="block text-[10px] font-mono text-[#9AA5B1] mb-1">Attendance %</label>
                     <input
                       type="number"
                       value={formAttendance}
                       onChange={(e) => setFormAttendance(e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded bg-[#101522] border border-[#1E273A] text-xs text-white font-mono"
+                      min={0}
+                      max={100}
+                      className="w-full px-2.5 py-1.5 rounded bg-[#151D26] border border-[#202C3B] text-xs text-[#F3F0E8] font-mono focus:outline-none focus:border-[#D89B5B]"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2.5 pt-2">
+              <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#202C3B]">
                 <button
                   type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-[#101522] border border-[#1E2638] cursor-pointer"
+                  onClick={() => setIsEditSubjectOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[#9AA5B1] hover:text-[#F3F0E8] bg-[#1B2533] border border-[#27384B] cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 cursor-pointer"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#D89B5B] hover:bg-[#E4AB70] text-[#0B0F14] shadow-sm cursor-pointer transition-all duration-150"
                 >
                   Save Changes
                 </button>
@@ -999,84 +1259,25 @@ export const AcademicPage: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: ADD SEMESTER */}
-      {isAddSemesterOpen && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#0D121C] border border-[#1E2638] rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-[#1E2638]">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-indigo-400" />
-                <span>Add Completed Semester</span>
-              </h3>
-              <button
-                onClick={() => setIsAddSemesterOpen(false)}
-                className="p-1 rounded-lg hover:bg-[#182030] text-slate-400 hover:text-white cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {/* MODAL: SUBJECT DETAILS */}
+      <SubjectDetailModal
+        subject={detailModalSubject}
+        syllabusItem={getLinkedSyllabusItem(detailModalSubject)}
+        isOpen={Boolean(detailModalSubject)}
+        onClose={() => setDetailModalSubject(null)}
+        onEdit={(sub) => openEditSubjectModal(sub)}
+        onDelete={(idOrCode) => handleDeleteSubject(idOrCode)}
+      />
 
-            <form onSubmit={handleAddSemester} className="space-y-3.5">
-              <div>
-                <label className="block text-xs font-mono text-slate-300 mb-1">Semester Name *</label>
-                <input
-                  type="text"
-                  value={semName}
-                  onChange={(e) => setSemName(e.target.value)}
-                  placeholder="e.g. Semester 2"
-                  className="w-full px-3 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">SGPA Obtained *</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max="10"
-                    value={semSgpa}
-                    onChange={(e) => setSemSgpa(e.target.value)}
-                    placeholder="e.g. 8.65"
-                    className="w-full px-3 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white font-mono"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-mono text-slate-300 mb-1">Total Credits *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="35"
-                    value={semCredits}
-                    onChange={(e) => setSemCredits(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-lg bg-[#090D15] border border-[#1E273A] text-xs text-white font-mono"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsAddSemesterOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white bg-[#101522] border border-[#1E2638] cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 cursor-pointer"
-                >
-                  Record Semester
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* MODAL: SEMESTER MANAGEMENT */}
+      <SemesterModal
+        isOpen={isSemesterModalOpen}
+        onClose={() => setIsSemesterModalOpen(false)}
+        onSave={handleSaveSemester}
+        onDelete={handleDeleteSemester}
+        initialData={editingSemesterData}
+        currentSemesterNumber={activeCurrentSemester}
+      />
     </div>
   );
 };

@@ -65,14 +65,14 @@ I can add this to your Project Lab with pre-configured milestone rubrics if you'
   * Export model weights to ONNX format and benchmark latency reduction.
 * **Week 4 (Days 22–30): Portfolio Deployment & ATS Sync**
   * Deploy the pipeline to Cloud Run with automated CI/CD GitHub Actions.
-  * Re-upload resume to NEXORA Resume Intelligence to verify score jump from 84 to 90+.`,
+  * Re-upload resume to UNNEXA Resume Intelligence to verify score jump from 84 to 90+.`,
 };
 
 const getInitialMessages = (studentName: string, cgpa?: number, currentSemester?: number, targetCareer?: string): Message[] => [
   {
     id: 'msg-1',
     sender: 'assistant',
-    content: `Hello ${studentName}! I am your NEXORA Student Intelligence Mentor. I have full context on your academic standing (${cgpa ? `CGPA ${cgpa.toFixed(2)}` : 'Academic profile'}, Semester ${currentSemester || 1}) and your target role as ${targetCareer || 'Engineer'}. How can I help you accelerate your trajectory today?`,
+    content: `Hello ${studentName}! I am your UNNEXA Student Intelligence Mentor. I have full context on your academic standing (${cgpa ? `CGPA ${cgpa.toFixed(2)}` : 'Academic profile'}, Semester ${currentSemester || 1}) and your target role as ${targetCareer || 'Engineer'}. How can I help you accelerate your trajectory today?`,
     timestamp: '10:00 AM',
     suggestions: [
       'How can I improve my technical skills?',
@@ -153,12 +153,12 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
         badge="Context Engine: Active"
         actions={
           <div className="flex items-center gap-3">
-            <span className="hidden sm:inline-block text-xs font-mono text-slate-400">
+            <span className="hidden sm:inline-block text-xs font-mono text-[#9AA5B1]">
               Target: {student.targetCareer}
             </span>
             <button
               onClick={handleClear}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white bg-[#121826] hover:bg-[#182030] border border-[#1E2638] transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-[#9AA5B1] hover:text-[#F3F0E8] bg-[#151D26] hover:bg-[#1B2533] border border-[#202C3B] transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Reset Chat</span>
@@ -168,12 +168,12 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
       />
 
       {/* Main Chat Container */}
-      <div className="flex-1 rounded-2xl bg-[#0D111A] border border-[#1C2538] flex flex-col overflow-hidden shadow-2xl">
+      <div className="flex-1 rounded-2xl bg-[#151D26] border border-[#202C3B] flex flex-col overflow-hidden shadow-2xl" id="chat-container">
         {/* Context Status Bar */}
-        <div className="h-10 bg-[#0A0E18] border-b border-[#182132] px-4 flex items-center justify-between text-xs text-slate-400 font-mono">
+        <div className="h-10 bg-[#0E151E] border-b border-[#202C3B] px-4 flex items-center justify-between text-xs text-[#9AA5B1] font-mono">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>NEXORA Assistant • Ready for Gemini API Hook</span>
+            <span className="w-2 h-2 rounded-full bg-[#67C5B8] animate-pulse" />
+            <span>UNNEXA Assistant • Ready for Gemini API Hook</span>
           </div>
           <span className="hidden sm:inline">Student: {student.name} (CGPA {student.cgpa})</span>
         </div>
@@ -189,10 +189,10 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
               >
                 {/* Avatar */}
                 <div
-                  className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-white ${
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 ${
                     isUser
-                      ? 'bg-indigo-600'
-                      : 'bg-gradient-to-br from-indigo-500 to-purple-600 border border-indigo-400/30'
+                      ? 'bg-[#D89B5B] text-[#0B0F14]'
+                      : 'bg-[#67C5B8]/20 border border-[#67C5B8]/40 text-[#67C5B8]'
                   }`}
                 >
                   {isUser ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
@@ -201,8 +201,8 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
                 {/* Bubble */}
                 <div className={`max-w-2xl rounded-2xl p-4 text-xs sm:text-sm leading-relaxed ${
                   isUser
-                    ? 'bg-indigo-600 text-white rounded-tr-none'
-                    : 'bg-[#121828] text-slate-200 border border-[#1F2B42] rounded-tl-none'
+                    ? 'bg-[#D89B5B] text-[#0B0F14] font-medium rounded-tr-none'
+                    : 'bg-[#0E151E] text-[#F3F0E8] border border-[#202C3B] rounded-tl-none'
                 }`}>
                   <div className="whitespace-pre-line font-sans">
                     {msg.content}
@@ -210,8 +210,8 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
 
                   {/* Suggestion prompt pills */}
                   {msg.suggestions && msg.suggestions.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-[#1C263A] space-y-2">
-                      <p className="text-[11px] font-mono text-indigo-300 font-semibold flex items-center gap-1.5">
+                    <div className="mt-4 pt-3 border-t border-[#202C3B] space-y-2">
+                      <p className="text-[11px] font-mono text-[#D89B5B] font-semibold flex items-center gap-1.5">
                         <Lightbulb className="w-3.5 h-3.5" />
                         <span>Suggested Queries:</span>
                       </p>
@@ -220,17 +220,17 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
                           <button
                             key={idx}
                             onClick={() => handleSend(sug)}
-                            className="text-left px-3 py-1.5 rounded-lg bg-[#182136] hover:bg-[#202C48] text-slate-200 hover:text-white border border-[#273656] text-xs transition-all cursor-pointer flex items-center gap-1.5"
+                            className="text-left px-3 py-1.5 rounded-lg bg-[#151D26] hover:bg-[#1B2533] text-[#F3F0E8] border border-[#202C3B] text-xs transition-all cursor-pointer flex items-center gap-1.5"
                           >
                             <span>{sug}</span>
-                            <ArrowRight className="w-3 h-3 text-indigo-400" />
+                            <ArrowRight className="w-3 h-3 text-[#D89B5B]" />
                           </button>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <div className={`mt-2 text-[10px] font-mono text-right ${isUser ? 'text-indigo-200' : 'text-slate-400'}`}>
+                  <div className={`mt-2 text-[10px] font-mono text-right ${isUser ? 'text-[#0B0F14]/70 font-semibold' : 'text-[#9AA5B1]'}`}>
                     {msg.timestamp}
                   </div>
                 </div>
@@ -241,13 +241,13 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
           {/* Loading Indicator */}
           {isLoading && (
             <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white flex-shrink-0">
+              <div className="w-8 h-8 rounded-xl bg-[#67C5B8]/20 border border-[#67C5B8]/40 text-[#67C5B8] flex items-center justify-center flex-shrink-0">
                 <Bot className="w-4 h-4" />
               </div>
-              <div className="bg-[#121828] border border-[#1F2B42] rounded-2xl rounded-tl-none p-3.5 flex items-center gap-2 text-xs text-slate-400">
-                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" />
-                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:0.2s]" />
-                <span className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce [animation-delay:0.4s]" />
+              <div className="bg-[#0E151E] border border-[#202C3B] rounded-2xl rounded-tl-none p-3.5 flex items-center gap-2 text-xs text-[#9AA5B1]">
+                <span className="w-2 h-2 rounded-full bg-[#D89B5B] animate-bounce" />
+                <span className="w-2 h-2 rounded-full bg-[#D89B5B] animate-bounce [animation-delay:0.2s]" />
+                <span className="w-2 h-2 rounded-full bg-[#D89B5B] animate-bounce [animation-delay:0.4s]" />
                 <span className="ml-2 font-mono text-[11px]">Synthesizing transcript &amp; skill matrices...</span>
               </div>
             </div>
@@ -257,7 +257,7 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
         </div>
 
         {/* Input Bar */}
-        <div className="p-4 bg-[#090D15] border-t border-[#182132]">
+        <div className="p-4 bg-[#0E151E] border-t border-[#202C3B]">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -271,12 +271,12 @@ Feel free to ask me to draft a syllabus, review code snippets, or compare job de
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about academic strategy, skill gaps, resume keywords, or projects..."
               disabled={isLoading}
-              className="flex-1 bg-[#101522] border border-[#1F2A40] rounded-xl px-4 py-3 text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-sans"
+              className="flex-1 bg-[#0B0F14] border border-[#202C3B] rounded-xl px-4 py-3 text-xs sm:text-sm text-[#F3F0E8] placeholder-[#768393] focus:outline-none focus:border-[#D89B5B] font-sans"
             />
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/30"
+              className="px-4 py-3 rounded-xl bg-[#D89B5B] hover:bg-[#E4AB70] disabled:opacity-40 text-[#0B0F14] font-semibold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm hover:-translate-y-0.5 active:translate-y-0"
               aria-label="Send query"
             >
               <Send className="w-4 h-4" />

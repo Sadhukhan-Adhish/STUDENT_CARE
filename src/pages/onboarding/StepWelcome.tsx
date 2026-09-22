@@ -25,7 +25,7 @@ export const StepWelcome: React.FC<StepWelcomeProps> = ({ data, onStart }) => {
       </div>
 
       <h1 className="text-2xl sm:text-4xl font-extrabold text-white tracking-tight font-heading mb-3">
-        Welcome to NEXORA, {firstName}
+        Welcome to UNNEXA, {firstName}
       </h1>
 
       <p className="text-sm sm:text-base text-slate-300 leading-relaxed max-w-md mx-auto mb-8">
